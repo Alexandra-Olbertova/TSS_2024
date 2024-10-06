@@ -1,3 +1,4 @@
+// inicializacia gdiplus init
 
 // MFCDlg.cpp : implementation file
 //
@@ -8,12 +9,20 @@
 #include "MFCDlg.h"
 #include "afxdialogex.h"
 
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
 
-// CAboutDlg dialog used for App About
+void CStaticImage::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct) {
+	GetParent()->SendMessage(WM_DRAW_IMAGE, (WPARAM)lpDrawItemStruct);
+}
+
+void CStaticHist::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct) {
+	GetParent()->SendMessage(WM_DRAW_HISTOGRAM, (WPARAM)lpDrawItemStruct);
+}
+
 
 class CAboutDlg : public CDialogEx
 {
@@ -51,15 +60,29 @@ END_MESSAGE_MAP()
 
 // CMFCDlg dialog
 
+// afx_msg LRESULT OnDrawImage(WPARAM wParam, LPARAM lParam);
+// afx_msg LRESULT OnDrawHist(WPARAM wParam, LPARAM lParam);
 
-void CStaticImage::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct) {
-	//GetParent()->SendMessage(CMFCDlg::WM_DRAW_IMAGE, (WPARAM)lpDrawItemStruct);
+LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
+{ 
+	LPDRAWITEMSTRUCT st = (LPDRAWITEMSTRUCT)wParam;
+	
+	// pridanie novej kniznice Gdi
+	auto gr = Gdiplus::Graphics::FromHDC(st->hDC); 
+
+	// image
+	//gr->DrawImage();
+	
+	// histogram
+	//gr->DrawCurve();
+
+	return S_OK;
 }
 
-void CStaticHist::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct) {
-	//GetParent()->SendMessage(CMFCDlg::WM_DRAW_HISTOGRAM, (WPARAM)lpDrawItemStruct);
+LRESULT CMFCDlg::OnDrawHist(WPARAM wParam, LPARAM lParam) 
+{
+	return S_OK;
 }
-
 
 
 CMFCDlg::CMFCDlg(CWnd* pParent /*=nullptr*/)
@@ -82,6 +105,8 @@ BEGIN_MESSAGE_MAP(CMFCDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_COMMAND(ID_OPEN, &CMFCDlg::OnOpen)
 	ON_COMMAND(ID_CLOSE, &CMFCDlg::OnClose)
+	ON_MESSAGE(WM_DRAW_IMAGE, OnDrawImage)
+	ON_MESSAGE(WM_DRAW_HISTOGRAM, OnDrawHist)
 	ON_WM_SIZE()
 	ON_WM_DRAWITEM()
 END_MESSAGE_MAP()
@@ -183,7 +208,56 @@ HCURSOR CMFCDlg::OnQueryDragIcon()
 
 void CMFCDlg::OnOpen()
 {
-	// TODO: Add your command handler code here
+	CString filter = _T("Files (*.png;*.bmp;*.jpg)|*.png;*.bmp;*.jpg||"); //nastavenie, ktore subory chceme
+
+	CFileDialog fileDlg(TRUE, _T("Select File"), NULL, OFN_FILEMUSTEXIST, filter);
+
+	if (fileDlg.DoModal() == IDOK) // zobrazi dialogove okno
+	{
+
+		CString selectedPath = fileDlg.GetPathName();
+
+		// ulozi cestu a nazov 
+		File file;
+		file.path = selectedPath.Left(selectedPath.ReverseFind('\\'));
+		file.fileName = selectedPath.Mid(selectedPath.ReverseFind('\\') + 1);
+
+		// zisti ci sa uz vo vectore nachadza 
+		bool fileExists = false;
+		for (const auto& i : m_fileListVector)
+		{
+			if (i.path == file.path && i.fileName == file.fileName)
+			{
+				fileExists = true;
+				break;
+			}
+		}
+
+		if (!fileExists)
+		{
+			// priradi na koniec zoznamu
+			m_fileListVector.push_back(file);
+
+			// zobrazi nove dialogove okno 
+			AfxMessageBox(_T("Selected File: ") + file.fileName);
+
+			// vypisanie celeho zoznamu mien - iba nove dialogove oko
+			CString fileNames;
+			for (const auto& i : m_fileListVector)
+			{
+				fileNames += i.fileName + _T("\n");
+			}
+			AfxMessageBox(_T("All files: \n") + fileNames);
+		}
+		else
+		{
+			AfxMessageBox(_T("File is already open"));
+		}
+	}
+	else
+	{
+		AfxMessageBox(_T("No file selected"));
+	}
 }
 
 
@@ -195,7 +269,6 @@ void CMFCDlg::OnClose()
 
 void CMFCDlg::OnSize(UINT nType, int cx, int cy)
 {
-
 	CDialogEx::OnSize(nType, cx, cy);
 
 	int nDiffY = cy - m_rect.Height();
@@ -207,14 +280,18 @@ void CMFCDlg::OnSize(UINT nType, int cx, int cy)
 
 		m_staticImage.SetWindowPos(nullptr, 0, 0, m_rectStaticImage.Width() + nDiffX, m_rectStaticImage.Height() + nDiffY, SWP_NOMOVE);
 		
-		int histTop = cy - m_rectStaticHistogram.Height() - 10;
-		m_staticHistogram.SetWindowPos(nullptr, m_rectStaticHistogram.left - 10, histTop, m_rectStaticHistogram.Width(), m_rectStaticHistogram.Height(), SWP_NOZORDER);
-	}
+		// opravit
+		int histDiff = m_rectFileList.Height() - m_rectStaticHistogram.Height();
+		int histRight = cy - m_rectStaticHistogram.Height() - histDiff;
+
+		m_staticHistogram.SetWindowPos(nullptr, m_rectStaticHistogram.left - histDiff, histRight, m_rectStaticHistogram.Width(), m_rectStaticHistogram.Height(), SWP_NOZORDER);
+
+		//int histTop = cy - m_rectStaticHistogram.Height() - 10;
+		//m_staticHistogram.SetWindowPos(nullptr, m_rectStaticHistogram.left - 10, histTop, m_rectStaticHistogram.Width(), m_rectStaticHistogram.Height(), SWP_NOZORDER);
+		}
 
 	Invalidate(TRUE);
 }
-
-
 
 void CMFCDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 {
