@@ -30,7 +30,6 @@ public:
 	CString path;
 	CString fileName;
 
-	
 };
 
 // CMFCDlg dialog

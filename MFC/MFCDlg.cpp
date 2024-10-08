@@ -204,54 +204,48 @@ HCURSOR CMFCDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-
-
 void CMFCDlg::OnOpen()
 {
-	CString filter = _T("Files (*.png;*.bmp;*.jpg)|*.png;*.bmp;*.jpg||"); //nastavenie, ktore subory chceme
+	CString filter = _T("Files (*.png;*.bmp;*.jpg)|*.png;*.bmp;*.jpg||");
 
-	CFileDialog fileDlg(TRUE, _T("Select File"), NULL, OFN_FILEMUSTEXIST, filter);
+	CFileDialog fileDlg(TRUE, _T("Select File"), NULL, OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT, filter);
 
-	if (fileDlg.DoModal() == IDOK) // zobrazi dialogove okno
+	if (fileDlg.DoModal() == IDOK)
 	{
-
-		CString selectedPath = fileDlg.GetPathName();
-
-		// ulozi cestu a nazov 
-		File file;
-		file.path = selectedPath.Left(selectedPath.ReverseFind('\\'));
-		file.fileName = selectedPath.Mid(selectedPath.ReverseFind('\\') + 1);
-
-		// zisti ci sa uz vo vectore nachadza 
-		bool fileExists = false;
-		for (const auto& i : m_fileListVector)
+		POSITION pos = fileDlg.GetStartPosition();
+		while (pos != NULL)
 		{
-			if (i.path == file.path && i.fileName == file.fileName)
-			{
-				fileExists = true;
-				break;
-			}
-		}
+			CString selectedPath = fileDlg.GetNextPathName(pos);
 
-		if (!fileExists)
-		{
-			// priradi na koniec zoznamu
-			m_fileListVector.push_back(file);
+			// ulozi cestu a nazov 
+			File file;
+			file.path = selectedPath.Left(selectedPath.ReverseFind('\\'));
+			file.fileName = selectedPath.Mid(selectedPath.ReverseFind('\\') + 1);
 
-			// zobrazi nove dialogove okno 
-			AfxMessageBox(_T("Selected File: ") + file.fileName);
-
-			// vypisanie celeho zoznamu mien - iba nove dialogove oko
-			CString fileNames;
+			// zisti ci sa uz vo vectore nachadza 
+			bool fileExists = false;
 			for (const auto& i : m_fileListVector)
 			{
-				fileNames += i.fileName + _T("\n");
+				if (i.path == file.path && i.fileName == file.fileName)
+				{
+					fileExists = true;
+					break;
+				}
 			}
-			AfxMessageBox(_T("All files: \n") + fileNames);
-		}
-		else
-		{
-			AfxMessageBox(_T("File is already open"));
+
+			if (!fileExists)
+			{
+
+				m_fileListVector.push_back(file);
+				int itemIndex = m_fileList.GetItemCount();
+				m_fileList.InsertItem(itemIndex, file.fileName); // vypise vo fileListe
+
+				//AfxMessageBox(_T("Selected File: ") + file.fileName);
+			}
+			else
+			{
+				AfxMessageBox(_T("File is already open: ") + file.fileName);
+			}
 		}
 	}
 	else
@@ -260,12 +254,36 @@ void CMFCDlg::OnOpen()
 	}
 }
 
-
 void CMFCDlg::OnClose()
 {
-	// TODO: Add your command handler code here
-}
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 
+	if (selectedItemIndex == -1)
+	{
+		AfxMessageBox(_T("No file selected"));
+	}
+	else
+	{
+		CString selectedFileName = m_fileList.GetItemText(selectedItemIndex, 0);
+
+		// spyta sa, ci si prajete odstranit subor po potvrdenie - yes/no message button
+		CString message;
+		message.Format(_T("Do you want to remove the file: %s?"), selectedFileName);
+
+		if (AfxMessageBox(message, MB_YESNO | MB_ICONQUESTION) == IDYES)
+		{
+			// subor sa zo zoznamu odstrani
+			auto i = std::remove_if(m_fileListVector.begin(), m_fileListVector.end(),
+				[&](const File& file)
+				{
+					return file.fileName == selectedFileName;
+				});
+			m_fileListVector.erase(i, m_fileListVector.end());
+			m_fileList.DeleteItem(selectedItemIndex);
+		}
+		AfxMessageBox(_T("File removed successfully."));
+	}
+}
 
 void CMFCDlg::OnSize(UINT nType, int cx, int cy)
 {
@@ -280,14 +298,11 @@ void CMFCDlg::OnSize(UINT nType, int cx, int cy)
 
 		m_staticImage.SetWindowPos(nullptr, 0, 0, m_rectStaticImage.Width() + nDiffX, m_rectStaticImage.Height() + nDiffY, SWP_NOMOVE);
 		
-		// opravit
 		int histDiff = m_rectFileList.Height() - m_rectStaticHistogram.Height();
 		int histRight = cy - m_rectStaticHistogram.Height() - histDiff;
 
 		m_staticHistogram.SetWindowPos(nullptr, m_rectStaticHistogram.left - histDiff, histRight, m_rectStaticHistogram.Width(), m_rectStaticHistogram.Height(), SWP_NOZORDER);
 
-		//int histTop = cy - m_rectStaticHistogram.Height() - 10;
-		//m_staticHistogram.SetWindowPos(nullptr, m_rectStaticHistogram.left - 10, histTop, m_rectStaticHistogram.Width(), m_rectStaticHistogram.Height(), SWP_NOZORDER);
 		}
 
 	Invalidate(TRUE);
