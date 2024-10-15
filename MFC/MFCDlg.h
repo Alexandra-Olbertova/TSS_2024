@@ -23,13 +23,12 @@ public:
 	void DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct) override;
 };
 
-// trieda pre ukladanie suboru
-class File
+struct Img
 {
-public:
-	CString path;
 	CString fileName;
+	CString filePath;
 
+	Gdiplus::Image* imageBitmap;
 };
 
 // CMFCDlg dialog
@@ -69,7 +68,10 @@ public:
 	CStaticHist m_staticHistogram;
 	CStaticImage m_staticImage;
 
-	std::vector<File> m_fileListVector;
+	std::vector<Img> m_imageList;
+
+	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+	ULONG_PTR gdiplusToken;
 
 	afx_msg void OnOpen();
 	afx_msg void OnClose();

@@ -67,14 +67,42 @@ LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 {
 	LPDRAWITEMSTRUCT st = (LPDRAWITEMSTRUCT)wParam;
 
-	// pridanie novej kniznice Gdi
 	auto gr = Gdiplus::Graphics::FromHDC(st->hDC);
 
-	// image
-	//gr->DrawImage();
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+	if (selectedItemIndex == -1) return S_OK;
 
-	// histogram
-	//gr->DrawCurve();
+	Img& selectedFile = m_imageList[selectedItemIndex];
+
+	if (selectedFile.imageBitmap)
+	{
+		CRect rect;
+		m_staticImage.GetClientRect(&rect);
+
+		// velkost obrazka
+		Gdiplus::REAL imgWidth = selectedFile.imageBitmap->GetWidth();
+		Gdiplus::REAL imgHeight = selectedFile.imageBitmap->GetHeight();
+
+		Gdiplus::REAL drawWidth, drawHeight, nDiffX = 0, nDiffY = 0;
+
+		//centrovanie obrazka
+		Gdiplus::REAL imageRatio = imgWidth / imgHeight;
+		Gdiplus::REAL rectRatio = rect.Width() / rect.Height();
+		if (imageRatio > rectRatio)
+		{
+			drawWidth = rect.Width();
+			drawHeight = drawWidth / imageRatio;
+			nDiffY = (rect.Height() - drawHeight) / 2;
+		}
+		else
+		{
+			drawHeight = rect.Height();
+			drawWidth = drawHeight * imageRatio;
+			nDiffX = (rect.Width() - drawWidth) / 2;
+		}
+
+		gr->DrawImage(selectedFile.imageBitmap, rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
+	}
 
 	return S_OK;
 }
@@ -219,15 +247,18 @@ void CMFCDlg::OnOpen()
 			CString selectedPath = fileDlg.GetNextPathName(pos);
 
 			// ulozi cestu a nazov 
-			File file;
-			file.path = selectedPath.Left(selectedPath.ReverseFind('\\'));
-			file.fileName = selectedPath.Mid(selectedPath.ReverseFind('\\') + 1);
+			Img image;
+			image.filePath = selectedPath.Left(selectedPath.ReverseFind('\\'));
+			image.fileName = selectedPath.Mid(selectedPath.ReverseFind('\\') + 1);
+
+			CString fullPath = image.filePath + "\\" + image.fileName;
+			image.imageBitmap = Gdiplus::Image::FromFile(fullPath);
 
 			// zisti ci sa uz vo vectore nachadza 
 			bool fileExists = false;
-			for (const auto& i : m_fileListVector)
+			for (const auto& i : m_imageList)
 			{
-				if (i.path == file.path && i.fileName == file.fileName)
+				if (i.filePath == image.filePath && i.fileName == image.fileName)
 				{
 					fileExists = true;
 					break;
@@ -236,16 +267,13 @@ void CMFCDlg::OnOpen()
 
 			if (!fileExists)
 			{
-
-				m_fileListVector.push_back(file);
+				m_imageList.push_back(image);
 				int itemIndex = m_fileList.GetItemCount();
-				m_fileList.InsertItem(itemIndex, file.fileName); // vypise vo fileListe
-
-				//AfxMessageBox(_T("Selected File: ") + file.fileName);
+				m_fileList.InsertItem(itemIndex, image.fileName); // vypise vo fileListe
 			}
 			else
 			{
-				AfxMessageBox(_T("File is already open: ") + file.fileName);
+				AfxMessageBox(_T("File is already open: ") + image.fileName);
 			}
 		}
 	}
@@ -274,12 +302,13 @@ void CMFCDlg::OnClose()
 		if (AfxMessageBox(message, MB_YESNO | MB_ICONQUESTION) == IDYES)
 		{
 			// subor sa zo zoznamu odstrani
-			auto i = std::remove_if(m_fileListVector.begin(), m_fileListVector.end(),
-				[&](const File& file)
+			auto i = std::remove_if(m_imageList.begin(), m_imageList.end(),
+				[&](const Img& file)
 				{
 					return file.fileName == selectedFileName;
 				});
-			m_fileListVector.erase(i, m_fileListVector.end());
+
+			m_imageList.erase(i, m_imageList.end());
 			m_fileList.DeleteItem(selectedItemIndex);
 		}
 		AfxMessageBox(_T("File removed successfully."));
@@ -290,6 +319,11 @@ void CMFCDlg::OnClose()
 		{
 			m_fileList.SetItemState(0, LVIS_SELECTED, LVIS_SELECTED);
 		}
+		else
+		{
+			InvalidateRect(nullptr, TRUE); // po vymazani posledneho suboru sa zobrazi prazdne okno
+		}
+		Invalidate(FALSE);
 	}
 }
 
@@ -326,8 +360,8 @@ void CMFCDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
-	
-	//m_staticImage.Invalidate(FALSE); // zavola sa OnDraw
+
+	m_staticImage.Invalidate(FALSE); // zavola sa OnDraw
 
 	*pResult = 0;
 }
