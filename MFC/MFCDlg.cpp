@@ -284,10 +284,11 @@ void CMFCDlg::OnClose()
 		}
 		AfxMessageBox(_T("File removed successfully."));
 
+		// po vymazani sa oznaci prvy 
 		int remainingItems = m_fileList.GetItemCount();
 		if (remainingItems > 0)
 		{
-			m_fileList.SetItemState(0, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+			m_fileList.SetItemState(0, LVIS_SELECTED, LVIS_SELECTED);
 		}
 	}
 }
