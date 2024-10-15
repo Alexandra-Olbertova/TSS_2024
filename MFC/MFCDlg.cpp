@@ -29,15 +29,15 @@ class CAboutDlg : public CDialogEx
 public:
 	CAboutDlg();
 
-// Dialog Data
+	// Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_ABOUTBOX };
 #endif
 
-	protected:
+protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
 
-// Implementation
+	// Implementation
 protected:
 	DECLARE_MESSAGE_MAP()
 
@@ -64,22 +64,22 @@ END_MESSAGE_MAP()
 // afx_msg LRESULT OnDrawHist(WPARAM wParam, LPARAM lParam);
 
 LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
-{ 
+{
 	LPDRAWITEMSTRUCT st = (LPDRAWITEMSTRUCT)wParam;
-	
+
 	// pridanie novej kniznice Gdi
-	auto gr = Gdiplus::Graphics::FromHDC(st->hDC); 
+	auto gr = Gdiplus::Graphics::FromHDC(st->hDC);
 
 	// image
 	//gr->DrawImage();
-	
+
 	// histogram
 	//gr->DrawCurve();
 
 	return S_OK;
 }
 
-LRESULT CMFCDlg::OnDrawHist(WPARAM wParam, LPARAM lParam) 
+LRESULT CMFCDlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 {
 	return S_OK;
 }
@@ -109,6 +109,7 @@ BEGIN_MESSAGE_MAP(CMFCDlg, CDialogEx)
 	ON_MESSAGE(WM_DRAW_HISTOGRAM, OnDrawHist)
 	ON_WM_SIZE()
 	ON_WM_DRAWITEM()
+	ON_NOTIFY(LVN_ITEMCHANGED, IDC_FILE_LIST, &CMFCDlg::OnLvnItemchangedFileList)
 END_MESSAGE_MAP()
 
 
@@ -145,7 +146,7 @@ BOOL CMFCDlg::OnInitDialog()
 
 	// TODO: Add extra initialization here
 
- 
+
 	// chcem vediet velkost hlavnej aplikacie
 	GetClientRect(&m_rect);
 	m_fileList.GetWindowRect(&m_rectFileList);
@@ -282,6 +283,12 @@ void CMFCDlg::OnClose()
 			m_fileList.DeleteItem(selectedItemIndex);
 		}
 		AfxMessageBox(_T("File removed successfully."));
+
+		int remainingItems = m_fileList.GetItemCount();
+		if (remainingItems > 0)
+		{
+			m_fileList.SetItemState(0, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+		}
 	}
 }
 
@@ -297,13 +304,13 @@ void CMFCDlg::OnSize(UINT nType, int cx, int cy)
 		m_fileList.SetWindowPos(nullptr, 0, 0, m_rectFileList.Width(), m_rectFileList.Height() + nDiffY, SWP_NOMOVE);
 
 		m_staticImage.SetWindowPos(nullptr, 0, 0, m_rectStaticImage.Width() + nDiffX, m_rectStaticImage.Height() + nDiffY, SWP_NOMOVE);
-		
+
 		int histDiff = m_rectFileList.Height() - m_rectStaticHistogram.Height();
 		int histRight = cy - m_rectStaticHistogram.Height() - histDiff;
 
 		m_staticHistogram.SetWindowPos(nullptr, m_rectStaticHistogram.left - histDiff, histRight, m_rectStaticHistogram.Width(), m_rectStaticHistogram.Height(), SWP_NOZORDER);
 
-		}
+	}
 
 	Invalidate(TRUE);
 }
@@ -313,4 +320,13 @@ void CMFCDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 	// TODO: Add your message handler code here and/or call default
 
 	CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct);
+}
+
+void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
+	
+	//m_staticImage.Invalidate(FALSE); // zavola sa OnDraw
+
+	*pResult = 0;
 }

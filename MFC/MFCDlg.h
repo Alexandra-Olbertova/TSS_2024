@@ -24,7 +24,7 @@ public:
 };
 
 // trieda pre ukladanie suboru
-class File 
+class File
 {
 public:
 	CString path;
@@ -35,20 +35,20 @@ public:
 // CMFCDlg dialog
 class CMFCDlg : public CDialogEx
 {
-// Construction
+	// Construction
 public:
 	CMFCDlg(CWnd* pParent = nullptr);	// standard constructor
 
-// Dialog Data
+	// Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_MFC_DIALOG };
 #endif
 
-	protected:
+protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
 
 
-// Implementation
+	// Implementation
 protected:
 	HICON m_hIcon;
 
@@ -61,7 +61,7 @@ protected:
 public:
 	CRect m_rectFileList;
 	CRect m_rect;
-	
+
 	CRect m_rectStaticImage;
 	CRect m_rectStaticHistogram;
 
@@ -80,7 +80,5 @@ public:
 	//CMFCDlg
 	afx_msg LRESULT OnDrawImage(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnDrawHist(WPARAM wParam, LPARAM lParam);
+	afx_msg void OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult);
 };
-
-
-
