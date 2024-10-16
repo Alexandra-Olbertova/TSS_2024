@@ -101,6 +101,9 @@ LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 			nDiffX = (rect.Width() - drawWidth) / 2;
 		}
 
+		drawWidth = min(drawWidth, rect.Width());
+		drawHeight = min(drawHeight, rect.Height());
+
 		gr->DrawImage(selectedFile.imageBitmap, rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
 	}
 
@@ -319,10 +322,10 @@ void CMFCDlg::OnClose()
 		{
 			m_fileList.SetItemState(0, LVIS_SELECTED, LVIS_SELECTED);
 		}
-		else
-		{
-			InvalidateRect(nullptr, TRUE); // po vymazani posledneho suboru sa zobrazi prazdne okno
-		}
+		//else
+		//{
+			//InvalidateRect(nullptr, TRUE); // po vymazani posledneho suboru sa zobrazi prazdne okno
+		//}
 		Invalidate(FALSE);
 	}
 }
@@ -362,6 +365,8 @@ void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
 
 	m_staticImage.Invalidate(FALSE); // zavola sa OnDraw
+
+	InvalidateRect(nullptr, TRUE);
 
 	*pResult = 0;
 }
