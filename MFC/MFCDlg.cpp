@@ -112,12 +112,34 @@ LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 
 LRESULT CMFCDlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 {
+	LPDRAWITEMSTRUCT st = (LPDRAWITEMSTRUCT)wParam;
+
+	auto gr = Gdiplus::Graphics::FromHDC(st->hDC);
+	CRect rect;
+	m_staticHistogram.GetClientRect(&rect);
+
+	// podla checked sa vykresli dany histogram
+	if (m_histogramR_checked) {
+		DrawHistogram(gr, rect, m_imageList[m_fileList.GetNextItem(-1, LVNI_SELECTED)].histogram.r, Gdiplus::Color(255, 0, 0));
+	}
+	if (m_histogramG_checked) {
+		DrawHistogram(gr, rect, m_imageList[m_fileList.GetNextItem(-1, LVNI_SELECTED)].histogram.g, Gdiplus::Color(0, 255, 0));
+	}
+	if (m_histogramB_checked) {
+		DrawHistogram(gr, rect, m_imageList[m_fileList.GetNextItem(-1, LVNI_SELECTED)].histogram.b, Gdiplus::Color(0, 0, 255));
+	}
+
 	return S_OK;
 }
 
 
 CMFCDlg::CMFCDlg(CWnd* pParent /*=nullptr*/)
-	: CDialogEx(IDD_MFC_DIALOG, pParent)
+	: CDialogEx(IDD_MFC_DIALOG, pParent),
+
+	// prvotne nastavenie -> vsetky zlozky budu unchecked
+	m_histogramR_checked(false),
+	m_histogramG_checked(false),
+	m_histogramB_checked(false)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -141,6 +163,9 @@ BEGIN_MESSAGE_MAP(CMFCDlg, CDialogEx)
 	ON_WM_SIZE()
 	ON_WM_DRAWITEM()
 	ON_NOTIFY(LVN_ITEMCHANGED, IDC_FILE_LIST, &CMFCDlg::OnLvnItemchangedFileList)
+	ON_COMMAND(ID_HISTOGRAM_R32788, &CMFCDlg::OnHistogramR32788)
+	ON_COMMAND(ID_HISTOGRAM_G32789, &CMFCDlg::OnHistogramG32789)
+	ON_COMMAND(ID_HISTOGRAM_B32790, &CMFCDlg::OnHistogramB32790)
 END_MESSAGE_MAP()
 
 
@@ -177,6 +202,11 @@ BOOL CMFCDlg::OnInitDialog()
 
 	// TODO: Add extra initialization here
 
+	// histogram - checked / unchecked
+	CMenu* pMenu = GetMenu();
+	pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, m_histogramR_checked ? MF_CHECKED : MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, m_histogramG_checked ? MF_CHECKED : MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, m_histogramB_checked ? MF_CHECKED : MF_UNCHECKED);
 
 	// chcem vediet velkost hlavnej aplikacie
 	GetClientRect(&m_rect);
@@ -293,40 +323,52 @@ void CMFCDlg::OnClose()
 	if (selectedItemIndex == -1)
 	{
 		AfxMessageBox(_T("No file selected"));
+		return;
 	}
-	else
+
+	CString selectedFileName = m_fileList.GetItemText(selectedItemIndex, 0);
+
+	// spyta sa, ci si prajete odstranit subor po potvrdenie - yes/no message button
+	CString message;
+	message.Format(_T("Do you want to remove the file: %s?"), selectedFileName);
+
+	if (AfxMessageBox(message, MB_YESNO | MB_ICONQUESTION) == IDYES)
 	{
-		CString selectedFileName = m_fileList.GetItemText(selectedItemIndex, 0);
+		// subor sa zo zoznamu odstrani
+		auto i = std::remove_if(m_imageList.begin(), m_imageList.end(),
+			[&](const Img& file)
+			{
+				return file.fileName == selectedFileName;
+			});
 
-		// spyta sa, ci si prajete odstranit subor po potvrdenie - yes/no message button
-		CString message;
-		message.Format(_T("Do you want to remove the file: %s?"), selectedFileName);
+		m_imageList.erase(i, m_imageList.end());
 
-		if (AfxMessageBox(message, MB_YESNO | MB_ICONQUESTION) == IDYES)
-		{
-			// subor sa zo zoznamu odstrani
-			auto i = std::remove_if(m_imageList.begin(), m_imageList.end(),
-				[&](const Img& file)
-				{
-					return file.fileName == selectedFileName;
-				});
-
-			m_imageList.erase(i, m_imageList.end());
+		if (::IsWindow(m_fileList.m_hWnd)) {
 			m_fileList.DeleteItem(selectedItemIndex);
-		}
-		AfxMessageBox(_T("File removed successfully."));
 
-		// po vymazani sa oznaci prvy 
-		int remainingItems = m_fileList.GetItemCount();
-		if (remainingItems > 0)
-		{
-			m_fileList.SetItemState(0, LVIS_SELECTED, LVIS_SELECTED);
+			// po vymazani sa oznaci prvy 
+			int remainingItems = m_fileList.GetItemCount();
+			if (remainingItems > 0)
+			{
+				m_fileList.SetItemState(0, LVIS_SELECTED, LVIS_SELECTED);
+			}
+			else
+			{
+				m_staticImage.Invalidate();
+				m_staticHistogram.Invalidate();
+
+				m_histogramG_checked = false;
+				m_histogramB_checked = false;
+				m_histogramR_checked = false;
+
+				CMenu* pMenu = GetMenu();
+				pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, MF_UNCHECKED);
+				pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, MF_UNCHECKED);
+				pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, MF_UNCHECKED);
+			}
+
+			Invalidate(FALSE);
 		}
-		//else
-		//{
-			//InvalidateRect(nullptr, TRUE); // po vymazani posledneho suboru sa zobrazi prazdne okno
-		//}
-		Invalidate(FALSE);
 	}
 }
 
@@ -364,9 +406,129 @@ void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
 
-	m_staticImage.Invalidate(FALSE); // zavola sa OnDraw
+	// volanie histogramu
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+	if (selectedItemIndex != -1) {
+		Img& selectedImage = m_imageList[selectedItemIndex];
+		CalculateHistogram(
+			static_cast<Gdiplus::Bitmap*>(selectedImage.imageBitmap),
+			selectedImage.histogram.r,
+			selectedImage.histogram.g,
+			selectedImage.histogram.b
+		);
+	}
+
+	// zavola sa OnDraw
+	m_staticImage.Invalidate(FALSE); 
+	m_staticHistogram.Invalidate(FALSE);
 
 	InvalidateRect(nullptr, TRUE);
 
 	*pResult = 0;
 }
+
+void CMFCDlg::DrawHistogram(Gdiplus::Graphics* gr, const CRect& rect, int* histogram, Gdiplus::Color color)
+{
+	int maxCount = *std::max_element(histogram, histogram + 256); 
+	float barWidth = static_cast<float>(rect.Width()) / 256; 
+
+	// nakreslenie histogramu
+	for (int i = 0; i < 256; ++i) {
+		float barHeight = (static_cast<float>(histogram[i]) / maxCount) * rect.Height();
+		gr->FillRectangle(&Gdiplus::SolidBrush(color), i * barWidth, rect.Height() - barHeight, barWidth, barHeight);
+	}
+}
+
+void CMFCDlg::OnHistogramR32788()
+{
+	m_histogramR_checked = !m_histogramR_checked;
+	CMenu* pMenu = GetMenu();
+	pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, m_histogramR_checked ? MF_CHECKED : MF_UNCHECKED);
+	
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+	if (selectedItemIndex >= 0) // musi byt aj = aby zobralo 1 obrazok
+		Invalidate();
+}
+
+void CMFCDlg::OnHistogramG32789()
+{
+	m_histogramG_checked = !m_histogramG_checked;
+	CMenu* pMenu = GetMenu();
+	pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, m_histogramG_checked ? MF_CHECKED : MF_UNCHECKED);
+	
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+	if (selectedItemIndex >= 0)
+		Invalidate();
+}
+
+void CMFCDlg::OnHistogramB32790()
+{
+	m_histogramB_checked = !m_histogramB_checked;
+	CMenu* pMenu = GetMenu();
+	pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, m_histogramB_checked ? MF_CHECKED : MF_UNCHECKED);
+	
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+	if (selectedItemIndex >= 0)
+		Invalidate();
+}
+
+void CMFCDlg::CalculateHistogram(Gdiplus::Bitmap* bmp, int* histogramR, int* histogramG, int* histogramB)
+{
+	if (bmp == nullptr) return;
+
+	UINT width = bmp->GetWidth();
+	UINT height = bmp->GetHeight();
+
+	// inicializacia
+	std::fill(histogramR, histogramR + 256, 0);
+	std::fill(histogramG, histogramG + 256, 0);
+	std::fill(histogramB, histogramB + 256, 0);
+
+	// LockBits
+	Gdiplus::Rect rect(0, 0, width, height);
+	Gdiplus::BitmapData bitmapData;
+
+	if (bmp->LockBits(&rect, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &bitmapData) == Gdiplus::Ok)
+	{
+		BYTE* pixels = static_cast<BYTE*>(bitmapData.Scan0);
+
+		for (UINT y = 0; y < height; ++y)
+		{
+			BYTE* row = pixels + y * bitmapData.Stride;
+			for (UINT x = 0; x < width; ++x)
+			{
+				BYTE b = row[x * 4];
+				BYTE g = row[x * 4 + 1];
+				BYTE r = row[x * 4 + 2];
+
+				histogramR[r]++;
+				histogramG[g]++;
+				histogramB[b]++;
+			}
+		}
+
+		bmp->UnlockBits(&bitmapData);
+	}
+}
+
+// histogram bez funkcie LockBits a bez transparentnosti
+/*
+void CMFCDlg::CalculateHistogram(Img& image)
+{
+	if (image.imageBitmap == nullptr) return;
+
+	Gdiplus::Bitmap* bmp = static_cast<Gdiplus::Bitmap*>(image.imageBitmap);
+	UINT width = bmp->GetWidth();
+	UINT height = bmp->GetHeight();
+
+	for (UINT y = 0; y < height; ++y) {
+		for (UINT x = 0; x < width; ++x) {
+			Gdiplus::Color color;
+			bmp->GetPixel(x, y, &color);
+			image.histogram.r[color.GetR()]++;
+			image.histogram.g[color.GetG()]++;
+			image.histogram.b[color.GetB()]++;
+		}
+	}
+}
+*/
