@@ -85,7 +85,7 @@ public:
 	bool m_histogramG_checked;
 	bool m_histogramB_checked;
 
-	void CalculateHistogram(Gdiplus::Bitmap* bmp, int* histogramR, int* histogramG, int* histogramB);
+	void CalculateHistogram(Img& image);
 	void DrawHistogram(Gdiplus::Graphics* gr, const CRect& rect, int* histogram, Gdiplus::Color color);
 
 	afx_msg void OnOpen();

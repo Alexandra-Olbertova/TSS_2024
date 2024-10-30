@@ -8,6 +8,9 @@
 #include "MFC.h"
 #include "MFCDlg.h"
 #include "afxdialogex.h"
+#include <gdiplus.h>
+
+using namespace Gdiplus;
 
 
 #ifdef _DEBUG
@@ -80,14 +83,14 @@ LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 		m_staticImage.GetClientRect(&rect);
 
 		// velkost obrazka
-		Gdiplus::REAL imgWidth = selectedFile.imageBitmap->GetWidth();
-		Gdiplus::REAL imgHeight = selectedFile.imageBitmap->GetHeight();
+		REAL imgWidth = selectedFile.imageBitmap->GetWidth();
+		REAL imgHeight = selectedFile.imageBitmap->GetHeight();
 
-		Gdiplus::REAL drawWidth, drawHeight, nDiffX = 0, nDiffY = 0;
+		REAL drawWidth, drawHeight, nDiffX = 0, nDiffY = 0;
 
 		//centrovanie obrazka
-		Gdiplus::REAL imageRatio = imgWidth / imgHeight;
-		Gdiplus::REAL rectRatio = rect.Width() / rect.Height();
+		REAL imageRatio = imgWidth / imgHeight;
+		REAL rectRatio = rect.Width() / rect.Height();
 		if (imageRatio > rectRatio)
 		{
 			drawWidth = rect.Width();
@@ -406,20 +409,13 @@ void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
 
-	// volanie histogramu
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 	if (selectedItemIndex != -1) {
 		Img& selectedImage = m_imageList[selectedItemIndex];
-		CalculateHistogram(
-			static_cast<Gdiplus::Bitmap*>(selectedImage.imageBitmap),
-			selectedImage.histogram.r,
-			selectedImage.histogram.g,
-			selectedImage.histogram.b
-		);
+		CalculateHistogram(selectedImage);
 	}
 
-	// zavola sa OnDraw
-	m_staticImage.Invalidate(FALSE); 
+	m_staticImage.Invalidate(FALSE);
 	m_staticHistogram.Invalidate(FALSE);
 
 	InvalidateRect(nullptr, TRUE);
@@ -429,13 +425,13 @@ void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 
 void CMFCDlg::DrawHistogram(Gdiplus::Graphics* gr, const CRect& rect, int* histogram, Gdiplus::Color color)
 {
-	int maxCount = *std::max_element(histogram, histogram + 256); 
-	float barWidth = static_cast<float>(rect.Width()) / 256; 
+	int maxCount = *std::max_element(histogram, histogram + 256);
+	float barWidth = static_cast<float>(rect.Width()) / 256;
 
 	// nakreslenie histogramu
 	for (int i = 0; i < 256; ++i) {
 		float barHeight = (static_cast<float>(histogram[i]) / maxCount) * rect.Height();
-		gr->FillRectangle(&Gdiplus::SolidBrush(color), i * barWidth, rect.Height() - barHeight, barWidth, barHeight);
+		gr->FillRectangle(&SolidBrush(color), i * barWidth, rect.Height() - barHeight, barWidth, barHeight);
 	}
 }
 
@@ -444,7 +440,7 @@ void CMFCDlg::OnHistogramR32788()
 	m_histogramR_checked = !m_histogramR_checked;
 	CMenu* pMenu = GetMenu();
 	pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, m_histogramR_checked ? MF_CHECKED : MF_UNCHECKED);
-	
+
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 	if (selectedItemIndex >= 0) // musi byt aj = aby zobralo 1 obrazok
 		Invalidate();
@@ -455,7 +451,7 @@ void CMFCDlg::OnHistogramG32789()
 	m_histogramG_checked = !m_histogramG_checked;
 	CMenu* pMenu = GetMenu();
 	pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, m_histogramG_checked ? MF_CHECKED : MF_UNCHECKED);
-	
+
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 	if (selectedItemIndex >= 0)
 		Invalidate();
@@ -466,27 +462,23 @@ void CMFCDlg::OnHistogramB32790()
 	m_histogramB_checked = !m_histogramB_checked;
 	CMenu* pMenu = GetMenu();
 	pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, m_histogramB_checked ? MF_CHECKED : MF_UNCHECKED);
-	
+
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 	if (selectedItemIndex >= 0)
 		Invalidate();
 }
 
-void CMFCDlg::CalculateHistogram(Gdiplus::Bitmap* bmp, int* histogramR, int* histogramG, int* histogramB)
+void CMFCDlg::CalculateHistogram(Img& image)
 {
-	if (bmp == nullptr) return;
+	if (image.imageBitmap == nullptr) return;
 
+	Bitmap* bmp = static_cast<Bitmap*>(image.imageBitmap);
 	UINT width = bmp->GetWidth();
 	UINT height = bmp->GetHeight();
 
-	// inicializacia
-	std::fill(histogramR, histogramR + 256, 0);
-	std::fill(histogramG, histogramG + 256, 0);
-	std::fill(histogramB, histogramB + 256, 0);
-
 	// LockBits
-	Gdiplus::Rect rect(0, 0, width, height);
-	Gdiplus::BitmapData bitmapData;
+	Rect rect(0, 0, width, height);
+	BitmapData bitmapData;
 
 	if (bmp->LockBits(&rect, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &bitmapData) == Gdiplus::Ok)
 	{
@@ -497,38 +489,16 @@ void CMFCDlg::CalculateHistogram(Gdiplus::Bitmap* bmp, int* histogramR, int* his
 			BYTE* row = pixels + y * bitmapData.Stride;
 			for (UINT x = 0; x < width; ++x)
 			{
-				BYTE b = row[x * 4];
-				BYTE g = row[x * 4 + 1];
-				BYTE r = row[x * 4 + 2];
+				BYTE blue = row[x * 4];
+				BYTE green = row[x * 4 + 1];
+				BYTE red = row[x * 4 + 2];
 
-				histogramR[r]++;
-				histogramG[g]++;
-				histogramB[b]++;
+				image.histogram.b[blue]++;
+				image.histogram.g[green]++;
+				image.histogram.r[red]++;
 			}
 		}
 
 		bmp->UnlockBits(&bitmapData);
 	}
 }
-
-// histogram bez funkcie LockBits a bez transparentnosti
-/*
-void CMFCDlg::CalculateHistogram(Img& image)
-{
-	if (image.imageBitmap == nullptr) return;
-
-	Gdiplus::Bitmap* bmp = static_cast<Gdiplus::Bitmap*>(image.imageBitmap);
-	UINT width = bmp->GetWidth();
-	UINT height = bmp->GetHeight();
-
-	for (UINT y = 0; y < height; ++y) {
-		for (UINT x = 0; x < width; ++x) {
-			Gdiplus::Color color;
-			bmp->GetPixel(x, y, &color);
-			image.histogram.r[color.GetR()]++;
-			image.histogram.g[color.GetG()]++;
-			image.histogram.b[color.GetB()]++;
-		}
-	}
-}
-*/
