@@ -192,7 +192,6 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="HistogramCalc.cpp" />
     <ClCompile Include="MFC.cpp" />
     <ClCompile Include="MFCDlg.cpp" />
     <ClCompile Include="pch.cpp">

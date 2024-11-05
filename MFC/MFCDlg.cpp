@@ -468,3 +468,25 @@ void CMFCDlg::OnHistogramB32790()
 	if (selectedItemIndex >= 0)
 		Invalidate();
 }
+
+void CMFCDlg::CalculateHistogram(Img& image)
+{
+	if (image.imageBitmap == nullptr) return;
+
+	Bitmap* bmp = static_cast<Bitmap*>(image.imageBitmap);
+	UINT width = bmp->GetWidth();
+	UINT height = bmp->GetHeight();
+
+	// LockBits
+	Rect rect(0, 0, width, height);
+	BitmapData bitmapData;
+
+	if (bmp->LockBits(&rect, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &bitmapData) == Gdiplus::Ok)
+	{
+		BYTE* pixels = static_cast<BYTE*>(bitmapData.Scan0);
+
+		CalculateHistogramData(pixels, width, height, bitmapData.Stride, image.histogram.r, image.histogram.g, image.histogram.b);
+
+		bmp->UnlockBits(&bitmapData);
+	}
+}

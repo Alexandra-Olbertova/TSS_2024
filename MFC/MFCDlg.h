@@ -2,7 +2,6 @@
 // MFCDlg.h : header file
 //
 #include <vector>
-#include "HistogramCalc.h"
 #pragma once
 
 // zadefinovana hodnota konstant - vsade bude mat definovanu danu hodnotu
@@ -22,6 +21,12 @@ class CStaticHist : public CStatic
 {
 public:
 	void DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct) override;
+};
+
+struct Histogram {
+	int r[256] = { 0 };
+	int g[256] = { 0 };
+	int b[256] = { 0 };
 };
 
 struct Img
@@ -80,6 +85,7 @@ public:
 	bool m_histogramG_checked;
 	bool m_histogramB_checked;
 
+	void CalculateHistogram(Img& image);
 	void DrawHistogram(Gdiplus::Graphics* gr, const CRect& rect, int* histogram, Gdiplus::Color color);
 
 	afx_msg void OnOpen();
