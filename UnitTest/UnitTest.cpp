@@ -9,7 +9,7 @@ namespace UnitTest
     TEST_CLASS(UnitTest)
     {
     public:
-        // 1. UnitTest - only blue pixels		
+// 1. UnitTest - only blue pixels		
         TEST_METHOD(UnitTest_RedPixels)
         {
             const int width = 2;
@@ -55,17 +55,17 @@ namespace UnitTest
             Assert::AreEqual(4, histogramB[255]);
         }
 
-        // 3. UnitTest - gray
-        TEST_METHOD(UnitTest_Gray)
+        // 3. UnitTest 
+        TEST_METHOD(UnitTest_DifferentColors)
         {
             int width = 2;
             int height = 2;
             const int stride = width * 4;
             BYTE pixelData[] = {
-                128, 128, 128, 255, // Gray
-                128, 128, 128, 255, // Gray
-                128, 128, 128, 255, // Gray
-                128, 128, 128, 255  // Gray
+                128, 30, 40, 255,
+                20, 128, 10, 255, 
+                150, 30, 40, 255, 
+                240, 90, 40, 255  
             };
 
             int histogramR[256] = { 0 };
@@ -74,9 +74,17 @@ namespace UnitTest
 
             CalculateHistogramData(pixelData, width, height, stride, histogramR, histogramG, histogramB);
 
-            Assert::AreEqual(4, histogramR[128]); 
-            Assert::AreEqual(4, histogramG[128]); 
-            Assert::AreEqual(4, histogramB[128]); 
+            Assert::AreEqual(1, histogramB[128]); 
+            Assert::AreEqual(1, histogramB[20]);
+            Assert::AreEqual(1, histogramB[150]);
+            Assert::AreEqual(1, histogramB[240]);
+
+            Assert::AreEqual(2, histogramG[30]); 
+            Assert::AreEqual(1, histogramG[128]);
+            Assert::AreEqual(1, histogramG[90]);
+
+            Assert::AreEqual(3, histogramR[40]); 
+            Assert::AreEqual(1, histogramR[10]);
         }
 
     };
