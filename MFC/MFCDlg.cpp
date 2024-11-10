@@ -1,5 +1,3 @@
-// inicializacia gdiplus init
-
 // MFCDlg.cpp : implementation file
 //
 
@@ -10,6 +8,7 @@
 #include "HistogramCalc.h"
 #include "afxdialogex.h"
 #include <gdiplus.h>
+#include <thread>
 
 using namespace Gdiplus;
 
@@ -136,6 +135,22 @@ LRESULT CMFCDlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 	return S_OK;
 }
 
+LRESULT CMFCDlg::OnHistogramCalculationDone(WPARAM wParam, LPARAM lParam)
+{
+	int doneIndex = static_cast<int>(wParam);
+
+	m_imageList[doneIndex].histogramCalculationInProgress = false;
+	m_imageList[doneIndex].histogramCalculated = true;
+
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+
+	if (selectedItemIndex == doneIndex) {
+		m_staticHistogram.Invalidate(FALSE);
+		InvalidateRect(nullptr, TRUE);
+	}
+
+	return 0;
+}
 
 CMFCDlg::CMFCDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_MFC_DIALOG, pParent),
@@ -170,6 +185,7 @@ BEGIN_MESSAGE_MAP(CMFCDlg, CDialogEx)
 	ON_COMMAND(ID_HISTOGRAM_R32788, &CMFCDlg::OnHistogramR32788)
 	ON_COMMAND(ID_HISTOGRAM_G32789, &CMFCDlg::OnHistogramG32789)
 	ON_COMMAND(ID_HISTOGRAM_B32790, &CMFCDlg::OnHistogramB32790)
+	ON_MESSAGE(WM_HISTOGRAM_CALCULATION_DONE, &CMFCDlg::OnHistogramCalculationDone)
 END_MESSAGE_MAP()
 
 
@@ -409,11 +425,22 @@ void CMFCDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
-
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+
 	if (selectedItemIndex != -1) {
 		Img& selectedImage = m_imageList[selectedItemIndex];
-		CalculateHistogram(selectedImage);
+
+		// ak je spusteny vypocet, dalsi sa nespusti
+		if (selectedImage.histogramCalculated || selectedImage.histogramCalculationInProgress) {return;}
+
+		selectedImage.histogramCalculationInProgress = true;
+
+		std::thread thread_hist([this, selectedItemIndex]() {
+			CalculateHistogram(m_imageList[selectedItemIndex]);
+			PostMessage(WM_HISTOGRAM_CALCULATION_DONE, selectedItemIndex, 0);
+			});
+
+		thread_hist.detach();
 	}
 
 	m_staticImage.Invalidate(FALSE);
@@ -489,4 +516,7 @@ void CMFCDlg::CalculateHistogram(Img& image)
 
 		bmp->UnlockBits(&bitmapData);
 	}
+
+	image.histogramCalculated = true;
+	image.histogramCalculationInProgress = false;
 }

@@ -1,6 +1,9 @@
 #include "pch.h"
 #include "CppUnitTest.h"
 #include "../MFC/HistogramCalc.h"
+#include <vector>
+#include <cstdlib>
+#include <ctime>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
@@ -9,6 +12,43 @@ namespace UnitTest
     TEST_CLASS(UnitTest)
     {
     public:
+        /*
+        TEST_METHOD(UnitTest_RandomRGBValues)
+        {
+            const int width = 256;
+            const int height = 256;
+            const int stride = width * 4;
+            const int totalPixels = width * height;
+
+            std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+            std::vector<BYTE> pixelData(totalPixels * 4);
+            for (int i = 0; i < totalPixels * 4; i += 4) {
+                pixelData[i] = static_cast<BYTE>(std::rand() % 256);     // B
+                pixelData[i + 1] = static_cast<BYTE>(std::rand() % 256); // G
+                pixelData[i + 2] = static_cast<BYTE>(std::rand() % 256); // R
+            }
+
+            // Initialize histograms
+            int histogramR[256] = { 0 };
+            int histogramG[256] = { 0 };
+            int histogramB[256] = { 0 };
+
+            CalculateHistogramData(pixelData.data(), width, height, stride, histogramR, histogramG, histogramB);
+
+            int sumR = 0, sumG = 0, sumB = 0;
+            for (int i = 0; i < 256; ++i) {
+                sumR += histogramR[i];
+                sumG += histogramG[i];
+                sumB += histogramB[i];
+            }
+
+            Assert::AreEqual(totalPixels, sumR, L"Total red pixel count mismatch");
+            Assert::AreEqual(totalPixels, sumG, L"Total green pixel count mismatch");
+            Assert::AreEqual(totalPixels, sumB, L"Total blue pixel count mismatch");
+        }
+        */
+
 // 1. UnitTest - only blue pixels		
         TEST_METHOD(UnitTest_RedPixels)
         {

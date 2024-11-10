@@ -8,7 +8,8 @@
 enum
 {
 	WM_DRAW_IMAGE = WM_USER + 1,
-	WM_DRAW_HISTOGRAM // ak nepripocitame, tak automaticky prirata +1 (WM_DRAW_IMAGE + 1 , WM_USER + 2)
+	WM_DRAW_HISTOGRAM, // ak nepripocitame, tak automaticky prirata +1 (WM_DRAW_IMAGE + 1 , WM_USER + 2)
+	WM_HISTOGRAM_CALCULATION_DONE
 };
 
 class CStaticImage : public CStatic
@@ -36,6 +37,9 @@ struct Img
 
 	Gdiplus::Image* imageBitmap;
 	Histogram histogram;
+
+	bool histogramCalculated = false;
+	bool histogramCalculationInProgress = false;
 };
 
 // CMFCDlg dialog
@@ -97,6 +101,7 @@ public:
 	//CMFCDlg
 	afx_msg LRESULT OnDrawImage(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnDrawHist(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnHistogramCalculationDone(WPARAM wParam, LPARAM lParam);
 	afx_msg void OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnHistogramR32788();
 	afx_msg void OnHistogramG32789();
