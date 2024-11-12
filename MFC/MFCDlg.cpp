@@ -110,7 +110,11 @@ LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 		drawWidth = min(drawWidth, rect.Width());
 		drawHeight = min(drawHeight, rect.Height());
 
-		gr->DrawImage(selectedFile.imageBitmap, rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
+		if(m_mosaic_checked)
+			gr->DrawImage(selectedFile.imageBitmapMosaic, rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
+		else
+			gr->DrawImage(selectedFile.imageBitmap, rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
+
 	}
 
 	return S_OK;
@@ -166,7 +170,8 @@ CMFCDlg::CMFCDlg(CWnd* pParent /*=nullptr*/)
 	// prvotne nastavenie -> vsetky zlozky budu unchecked
 	m_histogramR_checked(false),
 	m_histogramG_checked(false),
-	m_histogramB_checked(false)
+	m_histogramB_checked(false),
+	m_mosaic_checked(false)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -194,6 +199,7 @@ BEGIN_MESSAGE_MAP(CMFCDlg, CDialogEx)
 	ON_COMMAND(ID_HISTOGRAM_G32789, &CMFCDlg::OnHistogramG32789)
 	ON_COMMAND(ID_HISTOGRAM_B32790, &CMFCDlg::OnHistogramB32790)
 	ON_MESSAGE(WM_HISTOGRAM_CALCULATION_DONE, &CMFCDlg::OnHistogramCalculationDone)
+	ON_COMMAND(ID_OBRAZOK_MOSAIC, &CMFCDlg::OnObrazokMosaic)
 END_MESSAGE_MAP()
 
 
@@ -202,8 +208,6 @@ END_MESSAGE_MAP()
 BOOL CMFCDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
-
-	// Add "About..." menu item to system menu.
 
 	// IDM_ABOUTBOX must be in the system command range.
 	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
@@ -235,6 +239,8 @@ BOOL CMFCDlg::OnInitDialog()
 	pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, m_histogramR_checked ? MF_CHECKED : MF_UNCHECKED);
 	pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, m_histogramG_checked ? MF_CHECKED : MF_UNCHECKED);
 	pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, m_histogramB_checked ? MF_CHECKED : MF_UNCHECKED);
+
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC, m_mosaic_checked ? MF_CHECKED : MF_UNCHECKED);
 
 	// chcem vediet velkost hlavnej aplikacie
 	GetClientRect(&m_rect);
@@ -314,6 +320,7 @@ void CMFCDlg::OnOpen()
 
 			CString fullPath = image.filePath + "\\" + image.fileName;
 			image.imageBitmap = Gdiplus::Image::FromFile(fullPath);
+			image.imageBitmapMosaic = Gdiplus::Image::FromFile(fullPath);
 
 			// zisti ci sa uz vo vectore nachadza 
 			bool fileExists = false;
@@ -388,11 +395,13 @@ void CMFCDlg::OnClose()
 				m_histogramG_checked = false;
 				m_histogramB_checked = false;
 				m_histogramR_checked = false;
+				m_mosaic_checked = false;
 
 				CMenu* pMenu = GetMenu();
 				pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, MF_UNCHECKED);
 				pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, MF_UNCHECKED);
 				pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, MF_UNCHECKED);
+				pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC, MF_UNCHECKED);
 			}
 
 			Invalidate(FALSE);
@@ -436,6 +445,15 @@ void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 	
 	if (m_histogramR_checked || m_histogramG_checked || m_histogramB_checked) {
 		HistogramCalculationThread();
+	}
+
+	if (m_mosaic_checked) {
+		int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+		if (selectedItemIndex != -1) {
+			Img& selectedImage = m_imageList[selectedItemIndex];
+			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic));
+
+		}
 	}
 
 	m_staticImage.Invalidate(FALSE);
@@ -556,4 +574,74 @@ void CMFCDlg::CalculateHistogram(Img& image)
 
 	image.histogramCalculated = true;
 	image.histogramCalculationInProgress = false;
+}
+
+
+void CMFCDlg::OnObrazokMosaic()
+{
+	m_mosaic_checked = !m_mosaic_checked;
+	CMenu* pMenu = GetMenu();
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC, m_mosaic_checked ? MF_CHECKED : MF_UNCHECKED);
+
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+	if (selectedItemIndex >= 0) {
+		Img& selectedImage = m_imageList[selectedItemIndex];
+		ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic));
+		Invalidate();
+	}
+}
+
+void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap)
+{
+	// obrazok s N pixelmi 
+	// kazdy pixel je reprezentovany RGB
+	// avgRGB vypocitam ako priemer jednotlivych hodnot - (r1 + ... + rN) / N, ...
+
+	int blockSize = 10; // upravit na vlastne zadavanie hodnot
+
+	UINT width = bitmap->GetWidth();
+	UINT height = bitmap->GetHeight();
+
+	Rect rect(0, 0, width, height);
+	BitmapData bitmapData;
+
+	if (bitmap->LockBits(&rect, ImageLockModeWrite, PixelFormat32bppARGB, &bitmapData) == Gdiplus::Ok)
+	{
+		BYTE* pixels = static_cast<BYTE*>(bitmapData.Scan0);
+		int stride = bitmapData.Stride;
+
+		for (UINT y = 0; y < height; y += blockSize){// posuvam sa o velkost bloku
+			for (UINT x = 0; x < width; x += blockSize){
+				int rSum = 0, gSum = 0, bSum = 0, pixelCount = 0;
+
+				// priemer
+				for (UINT yy = y; yy < y + blockSize && yy < height; yy++){
+					for (UINT xx = x; xx < x + blockSize && xx < width; xx++){
+						BYTE* pixel = pixels + (yy * stride) + (xx * 4);
+
+						bSum += pixel[0];
+						gSum += pixel[1];
+						rSum += pixel[2];
+						pixelCount++;
+					}
+				}
+				BYTE rAvg = static_cast<BYTE>(rSum / pixelCount);
+				BYTE gAvg = static_cast<BYTE>(gSum / pixelCount);
+				BYTE bAvg = static_cast<BYTE>(bSum / pixelCount);
+
+				// aplikovanie
+				for (UINT yy = y; yy < y + blockSize && yy < height; yy++){
+					for (UINT xx = x; xx < x + blockSize && xx < width; xx++){
+						BYTE* pixel = pixels + (yy * stride) + (xx * 4);
+
+						pixel[0] = bAvg; // blue
+						pixel[1] = gAvg; // green
+						pixel[2] = rAvg; // red
+					}
+				}
+			}
+		}
+
+		bitmap->UnlockBits(&bitmapData);
+	}
 }

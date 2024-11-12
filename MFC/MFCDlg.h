@@ -38,6 +38,8 @@ struct Img
 	Gdiplus::Image* imageBitmap;
 	Histogram histogram;
 
+	Gdiplus::Image* imageBitmapMosaic;
+
 	bool histogramCalculated = false;
 	bool histogramCalculationInProgress = false;
 };
@@ -94,6 +96,10 @@ public:
 
 	void HistogramCalculationThread();
 
+	bool m_mosaic_checked;
+
+	void ApplyMosaicEffect(Gdiplus::Bitmap* bitmap);
+
 	afx_msg void OnOpen();
 	afx_msg void OnClose();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
@@ -108,4 +114,5 @@ public:
 	afx_msg void OnHistogramR32788();
 	afx_msg void OnHistogramG32789();
 	afx_msg void OnHistogramB32790();
+	afx_msg void OnObrazokMosaic();
 };

@@ -28,13 +28,18 @@
 #define ID_HISTOGRAM_R32788             32788
 #define ID_HISTOGRAM_G32789             32789
 #define ID_HISTOGRAM_B32790             32790
+#define ID_OBRAZOK_MOSAICEFECT          32791
+#define ID_OBRAZOK_MOSAICEFFECT         32792
+#define ID_OBRAZOK_MOSAIC               32793
+#define ID_OBRAZOK_PARAMETER            32794
+#define ID_Menu                         32795
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        132
-#define _APS_NEXT_COMMAND_VALUE         32791
+#define _APS_NEXT_COMMAND_VALUE         32796
 #define _APS_NEXT_CONTROL_VALUE         1003
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
