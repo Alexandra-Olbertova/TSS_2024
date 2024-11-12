@@ -1,6 +1,9 @@
 // MFCDlg.cpp : implementation file
 //
 
+// kill thread - thread nieco bude vracat 
+// mutex premenna 
+
 #include "pch.h"
 #include "framework.h"
 #include "MFC.h"
@@ -121,15 +124,19 @@ LRESULT CMFCDlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 	CRect rect;
 	m_staticHistogram.GetClientRect(&rect);
 
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+
+
 	// podla checked sa vykresli dany histogram
+
 	if (m_histogramR_checked) {
-		DrawHistogram(gr, rect, m_imageList[m_fileList.GetNextItem(-1, LVNI_SELECTED)].histogram.r, Gdiplus::Color(255, 0, 0));
+		DrawHistogram(gr, rect, m_imageList[selectedItemIndex].histogram.r, Gdiplus::Color(255, 0, 0));
 	}
 	if (m_histogramG_checked) {
-		DrawHistogram(gr, rect, m_imageList[m_fileList.GetNextItem(-1, LVNI_SELECTED)].histogram.g, Gdiplus::Color(0, 255, 0));
+		DrawHistogram(gr, rect, m_imageList[selectedItemIndex].histogram.g, Gdiplus::Color(0, 255, 0));
 	}
 	if (m_histogramB_checked) {
-		DrawHistogram(gr, rect, m_imageList[m_fileList.GetNextItem(-1, LVNI_SELECTED)].histogram.b, Gdiplus::Color(0, 0, 255));
+		DrawHistogram(gr, rect, m_imageList[selectedItemIndex].histogram.b, Gdiplus::Color(0, 0, 255));
 	}
 
 	return S_OK;
@@ -425,22 +432,9 @@ void CMFCDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
-	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-
-	if (selectedItemIndex != -1) {
-		Img& selectedImage = m_imageList[selectedItemIndex];
-
-		// ak je spusteny vypocet, dalsi sa nespusti
-		if (selectedImage.histogramCalculated || selectedImage.histogramCalculationInProgress) {return;}
-
-		selectedImage.histogramCalculationInProgress = true;
-
-		std::thread thread_hist([this, selectedItemIndex]() {
-			CalculateHistogram(m_imageList[selectedItemIndex]);
-			PostMessage(WM_HISTOGRAM_CALCULATION_DONE, selectedItemIndex, 0);
-			});
-
-		thread_hist.detach();
+	
+	if (m_histogramR_checked || m_histogramG_checked || m_histogramB_checked) {
+		HistogramCalculationThread();
 	}
 
 	m_staticImage.Invalidate(FALSE);
@@ -449,6 +443,28 @@ void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 	InvalidateRect(nullptr, TRUE);
 
 	*pResult = 0;
+}
+
+void CMFCDlg::HistogramCalculationThread()
+{
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+
+	if (selectedItemIndex != -1) {
+		Img& selectedImage = m_imageList[selectedItemIndex];
+
+		// ak je spusteny vypocet, dalsi sa nespusti
+		if (selectedImage.histogramCalculated || selectedImage.histogramCalculationInProgress) { return; }
+
+		selectedImage.histogramCalculationInProgress = true;
+
+		std::thread thread_hist([this, selectedItemIndex]() {
+			//std::this_thread::sleep_for(std::chrono::seconds(3));
+			CalculateHistogram(m_imageList[selectedItemIndex]);
+			PostMessage(WM_HISTOGRAM_CALCULATION_DONE, selectedItemIndex, 0);
+			});
+
+		thread_hist.detach();
+	}
 }
 
 void CMFCDlg::DrawHistogram(Gdiplus::Graphics* gr, const CRect& rect, int* histogram, Gdiplus::Color color)
@@ -470,8 +486,13 @@ void CMFCDlg::OnHistogramR32788()
 	pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, m_histogramR_checked ? MF_CHECKED : MF_UNCHECKED);
 
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-	if (selectedItemIndex >= 0) // musi byt aj = aby zobralo 1 obrazok
-		Invalidate();
+	if (selectedItemIndex >= 0) {
+		Img& selectedImage = m_imageList[selectedItemIndex];
+		if (!selectedImage.histogramCalculated && !selectedImage.histogramCalculationInProgress) {
+			HistogramCalculationThread();  
+		}
+		Invalidate(); 
+	}
 }
 
 void CMFCDlg::OnHistogramG32789()
@@ -481,8 +502,13 @@ void CMFCDlg::OnHistogramG32789()
 	pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, m_histogramG_checked ? MF_CHECKED : MF_UNCHECKED);
 
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-	if (selectedItemIndex >= 0)
+	if (selectedItemIndex >= 0) {
+		Img& selectedImage = m_imageList[selectedItemIndex];
+		if (!selectedImage.histogramCalculated && !selectedImage.histogramCalculationInProgress) {
+			HistogramCalculationThread();
+		}
 		Invalidate();
+	}
 }
 
 void CMFCDlg::OnHistogramB32790()
@@ -492,8 +518,13 @@ void CMFCDlg::OnHistogramB32790()
 	pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, m_histogramB_checked ? MF_CHECKED : MF_UNCHECKED);
 
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-	if (selectedItemIndex >= 0)
+	if (selectedItemIndex >= 0) {
+		Img& selectedImage = m_imageList[selectedItemIndex];
+		if (!selectedImage.histogramCalculated && !selectedImage.histogramCalculationInProgress) {
+			HistogramCalculationThread();
+		}
 		Invalidate();
+	}
 }
 
 void CMFCDlg::CalculateHistogram(Img& image)

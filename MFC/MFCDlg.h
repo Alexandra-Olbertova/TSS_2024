@@ -92,6 +92,8 @@ public:
 	void CalculateHistogram(Img& image);
 	void DrawHistogram(Gdiplus::Graphics* gr, const CRect& rect, int* histogram, Gdiplus::Color color);
 
+	void HistogramCalculationThread();
+
 	afx_msg void OnOpen();
 	afx_msg void OnClose();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
