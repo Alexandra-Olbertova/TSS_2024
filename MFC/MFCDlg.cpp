@@ -144,10 +144,10 @@ LRESULT CMFCDlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 
 LRESULT CMFCDlg::OnHistogramCalculationDone(WPARAM wParam, LPARAM lParam)
 {
-	int doneIndex = static_cast<int>(wParam);
+	/*int doneIndex = static_cast<int>(wParam);
 
-	m_imageList[doneIndex].histogramCalculationInProgress = false;
-	m_imageList[doneIndex].histogramCalculated = true;
+	//m_imageList[doneIndex].histogramCalculationInProgress = false;
+	//m_imageList[doneIndex].histogramCalculated = true;
 
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 
@@ -155,7 +155,8 @@ LRESULT CMFCDlg::OnHistogramCalculationDone(WPARAM wParam, LPARAM lParam)
 		m_staticHistogram.Invalidate(FALSE);
 		InvalidateRect(nullptr, TRUE);
 	}
-
+	*/
+	m_staticHistogram.Invalidate(FALSE);
 	return 0;
 }
 
@@ -458,12 +459,15 @@ void CMFCDlg::HistogramCalculationThread()
 		selectedImage.histogramCalculationInProgress = true;
 
 		std::thread thread_hist([this, selectedItemIndex]() {
-			//std::this_thread::sleep_for(std::chrono::seconds(3));
 			CalculateHistogram(m_imageList[selectedItemIndex]);
 			PostMessage(WM_HISTOGRAM_CALCULATION_DONE, selectedItemIndex, 0);
 			});
 
 		thread_hist.detach();
+
+		selectedImage.histogramCalculationInProgress = false;
+		selectedImage.histogramCalculated = true;
+
 	}
 }
 
@@ -529,6 +533,8 @@ void CMFCDlg::OnHistogramB32790()
 
 void CMFCDlg::CalculateHistogram(Img& image)
 {
+	//std::this_thread::sleep_for(std::chrono::seconds(5));
+
 	if (image.imageBitmap == nullptr) return;
 
 	Bitmap* bmp = static_cast<Bitmap*>(image.imageBitmap);
