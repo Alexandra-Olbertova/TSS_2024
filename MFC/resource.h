@@ -43,13 +43,14 @@
 #define ID_OBRAZOK_MOSAIC_20            32803
 #define ID_OBRAZOK_MOSAIC_30            32804
 #define ID_OBRAZOK_MOSAIC_40            32805
+#define ID_OBRAZOK_RESETMOSAIC          32806
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        132
-#define _APS_NEXT_COMMAND_VALUE         32806
+#define _APS_NEXT_COMMAND_VALUE         32807
 #define _APS_NEXT_CONTROL_VALUE         1003
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

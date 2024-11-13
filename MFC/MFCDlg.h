@@ -103,8 +103,9 @@ public:
 	bool m_mosaic_checked_40;
 
 	void ApplyMosaicEffect(Gdiplus::Bitmap* bitmap, int blockSize);
-	void ResetMosaicFlags();
 	void ApplyMosaicEffectBasedOnSelection();
+	void applyMosaicInThread(int selectedItemIndex, int blockSize);
+	void ResetMosaicFlags();
 
 	afx_msg void OnOpen();
 	afx_msg void OnClose();
@@ -125,4 +126,5 @@ public:
 	afx_msg void OnObrazokMosaic20();
 	afx_msg void OnObrazokMosaic30();
 	afx_msg void OnObrazokMosaic40();
+	afx_msg void OnObrazokResetmosaic();
 };

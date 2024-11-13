@@ -161,11 +161,15 @@ LRESULT CMFCDlg::OnHistogramCalculationDone(WPARAM wParam, LPARAM lParam)
 	}
 	*/
 	m_staticHistogram.Invalidate(FALSE);
+	m_staticImage.Invalidate(FALSE);
 	return 0;
 }
 
 LRESULT CMFCDlg::OnMosaicDone(WPARAM wParam, LPARAM lParam)
 {
+	m_staticImage.Invalidate(FALSE);
+	m_staticHistogram.Invalidate(FALSE);
+
 	return 0;
 }
 
@@ -214,6 +218,7 @@ BEGIN_MESSAGE_MAP(CMFCDlg, CDialogEx)
 	ON_COMMAND(ID_OBRAZOK_MOSAIC_20, &CMFCDlg::OnObrazokMosaic20)
 	ON_COMMAND(ID_OBRAZOK_MOSAIC_30, &CMFCDlg::OnObrazokMosaic30)
 	ON_COMMAND(ID_OBRAZOK_MOSAIC_40, &CMFCDlg::OnObrazokMosaic40)
+	ON_COMMAND(ID_OBRAZOK_RESETMOSAIC, &CMFCDlg::OnObrazokResetmosaic)
 END_MESSAGE_MAP()
 
 
@@ -470,6 +475,7 @@ void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 	
 	if (m_histogramR_checked || m_histogramG_checked || m_histogramB_checked) {
 		HistogramCalculationThread();
+
 	}
 
 	if (m_mosaic_checked_10 || m_mosaic_checked_20 || m_mosaic_checked_30 || m_mosaic_checked_40) {
@@ -601,6 +607,8 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 	// obrazok s N pixelmi 
 	// kazdy pixel je reprezentovany RGB
 	// avgRGB vypocitam ako priemer jednotlivych hodnot - (r1 + ... + rN) / N, ...
+	
+	//std::this_thread::sleep_for(std::chrono::seconds(6));
 
 	UINT width = bitmap->GetWidth();
 	UINT height = bitmap->GetHeight();
@@ -649,6 +657,7 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 	}
 }
 
+/*
 void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
 
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
@@ -659,7 +668,13 @@ void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
 		selectedImage.imageBitmapMosaic = selectedImage.imageBitmap->Clone();
 
 		if (m_mosaic_checked_10) {
-			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 10);
+
+			std::thread thread_mosaic_10([this, selectedImage]() {
+				ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 10);
+				PostMessage(WM_MOSAIC_DONE, selectedImage, 0);
+				});
+
+			thread_mosaic_10.detach();
 		}
 		else if (m_mosaic_checked_20) {
 			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 20);
@@ -673,6 +688,48 @@ void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
 		Invalidate();
 	}
 }
+
+*/
+
+void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
+
+	std::thread mosaicThread([this, selectedItemIndex, blockSize]() {
+		Img& selectedImageThread = m_imageList[selectedItemIndex];
+
+		ApplyMosaicEffect(static_cast<Bitmap*>(selectedImageThread.imageBitmapMosaic), blockSize);
+
+		PostMessage(WM_MOSAIC_DONE, selectedItemIndex, 0);
+		});
+
+	mosaicThread.detach();
+}
+
+void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
+
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+
+	if (selectedItemIndex != -1) {
+		Img& selectedImage = m_imageList[selectedItemIndex];
+
+		delete selectedImage.imageBitmapMosaic;
+		selectedImage.imageBitmapMosaic = selectedImage.imageBitmap->Clone();
+
+		if (m_mosaic_checked_10) {
+			applyMosaicInThread(selectedItemIndex, 10);
+		}
+		else if (m_mosaic_checked_20) {
+			applyMosaicInThread(selectedItemIndex, 20);
+		}
+		else if (m_mosaic_checked_30) {
+			applyMosaicInThread(selectedItemIndex, 30);
+		}
+		else if (m_mosaic_checked_40) {
+			applyMosaicInThread(selectedItemIndex, 40);
+		}
+		Invalidate();
+	}
+}
+
 
 void CMFCDlg::OnObrazokMosaic() {
 
@@ -736,11 +793,31 @@ void CMFCDlg::OnObrazokMosaic40()
 	ApplyMosaicEffectBasedOnSelection();
 }
 
+void CMFCDlg::OnObrazokResetmosaic(){
+	
+	ResetMosaicFlags();
+
+	CMenu* pMenu = GetMenu();
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
+
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+	if (selectedItemIndex != -1) {
+		Img& selectedImage = m_imageList[selectedItemIndex];
+
+		delete selectedImage.imageBitmapMosaic; 
+		selectedImage.imageBitmapMosaic = nullptr;
+
+		m_staticImage.Invalidate(FALSE);
+	}
+}
+
 void CMFCDlg::ResetMosaicFlags() {
 	m_mosaic_checked_10 = false;
 	m_mosaic_checked_20 = false;
 	m_mosaic_checked_30 = false;
 	m_mosaic_checked_40 = false;
 }
-
 
