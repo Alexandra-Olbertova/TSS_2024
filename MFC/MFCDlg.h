@@ -9,7 +9,8 @@ enum
 {
 	WM_DRAW_IMAGE = WM_USER + 1,
 	WM_DRAW_HISTOGRAM, // ak nepripocitame, tak automaticky prirata +1 (WM_DRAW_IMAGE + 1 , WM_USER + 2)
-	WM_HISTOGRAM_CALCULATION_DONE
+	WM_HISTOGRAM_CALCULATION_DONE,
+	WM_MOSAIC_DONE
 };
 
 class CStaticImage : public CStatic
@@ -96,9 +97,14 @@ public:
 
 	void HistogramCalculationThread();
 
-	bool m_mosaic_checked;
+	bool m_mosaic_checked_10;
+	bool m_mosaic_checked_20;
+	bool m_mosaic_checked_30;
+	bool m_mosaic_checked_40;
 
-	void ApplyMosaicEffect(Gdiplus::Bitmap* bitmap);
+	void ApplyMosaicEffect(Gdiplus::Bitmap* bitmap, int blockSize);
+	void ResetMosaicFlags();
+	void ApplyMosaicEffectBasedOnSelection();
 
 	afx_msg void OnOpen();
 	afx_msg void OnClose();
@@ -110,9 +116,13 @@ public:
 	afx_msg LRESULT OnDrawImage(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnDrawHist(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnHistogramCalculationDone(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnMosaicDone(WPARAM wParam, LPARAM lParam);
 	afx_msg void OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnHistogramR32788();
 	afx_msg void OnHistogramG32789();
 	afx_msg void OnHistogramB32790();
 	afx_msg void OnObrazokMosaic();
+	afx_msg void OnObrazokMosaic20();
+	afx_msg void OnObrazokMosaic30();
+	afx_msg void OnObrazokMosaic40();
 };

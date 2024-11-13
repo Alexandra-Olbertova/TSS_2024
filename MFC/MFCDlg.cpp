@@ -110,7 +110,7 @@ LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 		drawWidth = min(drawWidth, rect.Width());
 		drawHeight = min(drawHeight, rect.Height());
 
-		if(m_mosaic_checked)
+		if(m_mosaic_checked_10 || m_mosaic_checked_20 || m_mosaic_checked_30 || m_mosaic_checked_40)
 			gr->DrawImage(selectedFile.imageBitmapMosaic, rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
 		else
 			gr->DrawImage(selectedFile.imageBitmap, rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
@@ -164,6 +164,12 @@ LRESULT CMFCDlg::OnHistogramCalculationDone(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
+LRESULT CMFCDlg::OnMosaicDone(WPARAM wParam, LPARAM lParam)
+{
+	return 0;
+}
+
+
 CMFCDlg::CMFCDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_MFC_DIALOG, pParent),
 
@@ -171,7 +177,11 @@ CMFCDlg::CMFCDlg(CWnd* pParent /*=nullptr*/)
 	m_histogramR_checked(false),
 	m_histogramG_checked(false),
 	m_histogramB_checked(false),
-	m_mosaic_checked(false)
+	
+	m_mosaic_checked_10(false),
+	m_mosaic_checked_20(false),
+	m_mosaic_checked_30(false),
+	m_mosaic_checked_40(false)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -199,7 +209,11 @@ BEGIN_MESSAGE_MAP(CMFCDlg, CDialogEx)
 	ON_COMMAND(ID_HISTOGRAM_G32789, &CMFCDlg::OnHistogramG32789)
 	ON_COMMAND(ID_HISTOGRAM_B32790, &CMFCDlg::OnHistogramB32790)
 	ON_MESSAGE(WM_HISTOGRAM_CALCULATION_DONE, &CMFCDlg::OnHistogramCalculationDone)
-	ON_COMMAND(ID_OBRAZOK_MOSAIC, &CMFCDlg::OnObrazokMosaic)
+	ON_MESSAGE(WM_MOSAIC_DONE, &CMFCDlg::OnMosaicDone)
+	ON_COMMAND(ID_OBRAZOK_MOSAIC_10, &CMFCDlg::OnObrazokMosaic)
+	ON_COMMAND(ID_OBRAZOK_MOSAIC_20, &CMFCDlg::OnObrazokMosaic20)
+	ON_COMMAND(ID_OBRAZOK_MOSAIC_30, &CMFCDlg::OnObrazokMosaic30)
+	ON_COMMAND(ID_OBRAZOK_MOSAIC_40, &CMFCDlg::OnObrazokMosaic40)
 END_MESSAGE_MAP()
 
 
@@ -240,7 +254,10 @@ BOOL CMFCDlg::OnInitDialog()
 	pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, m_histogramG_checked ? MF_CHECKED : MF_UNCHECKED);
 	pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, m_histogramB_checked ? MF_CHECKED : MF_UNCHECKED);
 
-	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC, m_mosaic_checked ? MF_CHECKED : MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, m_mosaic_checked_10 ? MF_CHECKED : MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, m_mosaic_checked_20 ? MF_CHECKED : MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, m_mosaic_checked_30 ? MF_CHECKED : MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, m_mosaic_checked_40 ? MF_CHECKED : MF_UNCHECKED);
 
 	// chcem vediet velkost hlavnej aplikacie
 	GetClientRect(&m_rect);
@@ -395,13 +412,21 @@ void CMFCDlg::OnClose()
 				m_histogramG_checked = false;
 				m_histogramB_checked = false;
 				m_histogramR_checked = false;
-				m_mosaic_checked = false;
+				
+				m_mosaic_checked_10 = false;
+				m_mosaic_checked_20 = false;
+				m_mosaic_checked_30 = false;
+				m_mosaic_checked_40 = false;
 
 				CMenu* pMenu = GetMenu();
 				pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, MF_UNCHECKED);
 				pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, MF_UNCHECKED);
 				pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, MF_UNCHECKED);
-				pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC, MF_UNCHECKED);
+
+				pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, MF_UNCHECKED);
+				pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, MF_UNCHECKED);
+				pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
+				pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
 			}
 
 			Invalidate(FALSE);
@@ -447,13 +472,8 @@ void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 		HistogramCalculationThread();
 	}
 
-	if (m_mosaic_checked) {
-		int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-		if (selectedItemIndex != -1) {
-			Img& selectedImage = m_imageList[selectedItemIndex];
-			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic));
-
-		}
+	if (m_mosaic_checked_10 || m_mosaic_checked_20 || m_mosaic_checked_30 || m_mosaic_checked_40) {
+		ApplyMosaicEffectBasedOnSelection();
 	}
 
 	m_staticImage.Invalidate(FALSE);
@@ -576,28 +596,11 @@ void CMFCDlg::CalculateHistogram(Img& image)
 	image.histogramCalculationInProgress = false;
 }
 
-
-void CMFCDlg::OnObrazokMosaic()
-{
-	m_mosaic_checked = !m_mosaic_checked;
-	CMenu* pMenu = GetMenu();
-	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC, m_mosaic_checked ? MF_CHECKED : MF_UNCHECKED);
-
-	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-	if (selectedItemIndex >= 0) {
-		Img& selectedImage = m_imageList[selectedItemIndex];
-		ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic));
-		Invalidate();
-	}
-}
-
-void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap)
+void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 {
 	// obrazok s N pixelmi 
 	// kazdy pixel je reprezentovany RGB
 	// avgRGB vypocitam ako priemer jednotlivych hodnot - (r1 + ... + rN) / N, ...
-
-	int blockSize = 10; // upravit na vlastne zadavanie hodnot
 
 	UINT width = bitmap->GetWidth();
 	UINT height = bitmap->GetHeight();
@@ -645,3 +648,99 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap)
 		bitmap->UnlockBits(&bitmapData);
 	}
 }
+
+void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
+
+	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+	if (selectedItemIndex != -1) {
+		Img& selectedImage = m_imageList[selectedItemIndex];
+
+		delete selectedImage.imageBitmapMosaic; 
+		selectedImage.imageBitmapMosaic = selectedImage.imageBitmap->Clone();
+
+		if (m_mosaic_checked_10) {
+			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 10);
+		}
+		else if (m_mosaic_checked_20) {
+			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 20);
+		}
+		else if (m_mosaic_checked_30) {
+			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 30);
+		}
+		else if (m_mosaic_checked_40) {
+			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 40);
+		}
+		Invalidate();
+	}
+}
+
+void CMFCDlg::OnObrazokMosaic() {
+
+	ResetMosaicFlags();
+
+	m_mosaic_checked_10 = true;
+
+	CMenu* pMenu = GetMenu();
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, MF_CHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
+
+	ApplyMosaicEffectBasedOnSelection();
+}
+
+void CMFCDlg::OnObrazokMosaic20() {
+
+	ResetMosaicFlags();
+
+	m_mosaic_checked_20 = true;
+
+	CMenu* pMenu = GetMenu();
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, MF_CHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
+
+	ApplyMosaicEffectBasedOnSelection();
+}
+
+void CMFCDlg::OnObrazokMosaic30()
+{
+
+	ResetMosaicFlags();
+
+	m_mosaic_checked_30 = true;
+
+	CMenu* pMenu = GetMenu();
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_CHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
+
+	ApplyMosaicEffectBasedOnSelection();
+}
+
+void CMFCDlg::OnObrazokMosaic40()
+{
+
+	ResetMosaicFlags();
+
+	m_mosaic_checked_40 = true;
+
+	CMenu* pMenu = GetMenu();
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
+	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_CHECKED);
+
+	ApplyMosaicEffectBasedOnSelection();
+}
+
+void CMFCDlg::ResetMosaicFlags() {
+	m_mosaic_checked_10 = false;
+	m_mosaic_checked_20 = false;
+	m_mosaic_checked_30 = false;
+	m_mosaic_checked_40 = false;
+}
+
+

@@ -33,13 +33,23 @@
 #define ID_OBRAZOK_MOSAIC               32793
 #define ID_OBRAZOK_PARAMETER            32794
 #define ID_Menu                         32795
+#define ID_OBRAZOK_MOSAIC32796          32796
+#define ID_OBRAZOK_MOSAIC32797          32797
+#define ID_OBRAZOK_MOSAIC32798          32798
+#define ID_OBRAZOK_MOSAIC20             32799
+#define ID_OBRAZOK_MOSAIC30             32800
+#define ID_OBRAZOK_MOSAIC40             32801
+#define ID_OBRAZOK_MOSAIC_10            32802
+#define ID_OBRAZOK_MOSAIC_20            32803
+#define ID_OBRAZOK_MOSAIC_30            32804
+#define ID_OBRAZOK_MOSAIC_40            32805
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        132
-#define _APS_NEXT_COMMAND_VALUE         32796
+#define _APS_NEXT_COMMAND_VALUE         32806
 #define _APS_NEXT_CONTROL_VALUE         1003
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
