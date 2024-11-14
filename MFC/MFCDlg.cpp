@@ -110,8 +110,18 @@ LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 		drawWidth = min(drawWidth, rect.Width());
 		drawHeight = min(drawHeight, rect.Height());
 
-		if(m_mosaic_checked_10 || m_mosaic_checked_20 || m_mosaic_checked_30 || m_mosaic_checked_40)
-			gr->DrawImage(selectedFile.imageBitmapMosaic, rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
+		if (m_mosaic_checked_10 || m_mosaic_checked_20 || m_mosaic_checked_30 || m_mosaic_checked_40) {
+
+			int blockSize;
+			if (m_mosaic_checked_10) blockSize = 10;
+			else if (m_mosaic_checked_20) blockSize = 20;
+			else if (m_mosaic_checked_30) blockSize = 30;
+			else if (m_mosaic_checked_40) blockSize = 40;
+			int index = GetBlockSizeIndex(blockSize);
+
+			gr->DrawImage(selectedFile.imageBitmapMosaic[index], rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
+		}
+			
 		else
 			gr->DrawImage(selectedFile.imageBitmap, rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
 
@@ -342,7 +352,6 @@ void CMFCDlg::OnOpen()
 
 			CString fullPath = image.filePath + "\\" + image.fileName;
 			image.imageBitmap = Gdiplus::Image::FromFile(fullPath);
-			image.imageBitmapMosaic = Gdiplus::Image::FromFile(fullPath);
 
 			// zisti ci sa uz vo vectore nachadza 
 			bool fileExists = false;
@@ -604,13 +613,24 @@ void CMFCDlg::CalculateHistogram(Img& image)
 	image.histogramCalculationInProgress = false;
 }
 
+
+int CMFCDlg::GetBlockSizeIndex(int blockSize) {
+	switch (blockSize) {
+	case 10: return 0;
+	case 20: return 1;
+	case 30: return 2;
+	case 40: return 3;
+	default: return -1; 
+	}
+}
+
 void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 {
 	// obrazok s N pixelmi 
 	// kazdy pixel je reprezentovany RGB
 	// avgRGB vypocitam ako priemer jednotlivych hodnot - (r1 + ... + rN) / N, ...
 	
-	//std::this_thread::sleep_for(std::chrono::seconds(6));
+	//std::this_thread::sleep_for(std::chrono::seconds(10));
 
 	UINT width = bitmap->GetWidth();
 	UINT height = bitmap->GetHeight();
@@ -698,10 +718,16 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 	std::thread mosaicThread([this, selectedItemIndex, blockSize]() {
 		Img& selectedImageThread = m_imageList[selectedItemIndex];
 
-		ApplyMosaicEffect(static_cast<Bitmap*>(selectedImageThread.imageBitmapMosaic), blockSize);
+		int index = GetBlockSizeIndex(blockSize);
 
-		PostMessage(WM_MOSAIC_DONE, selectedItemIndex, 0);
-		});
+		if (index != -1) {
+			Gdiplus::Image* mosaicImage = selectedImageThread.imageBitmap->Clone();
+			ApplyMosaicEffect(static_cast<Bitmap*>(mosaicImage), blockSize);
+			selectedImageThread.imageBitmapMosaic[index] = mosaicImage;
+
+			PostMessage(WM_MOSAIC_DONE, selectedItemIndex, 0);
+		}
+	});
 
 	mosaicThread.detach();
 }
@@ -713,25 +739,22 @@ void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
 	if (selectedItemIndex != -1) {
 		Img& selectedImage = m_imageList[selectedItemIndex];
 
-		delete selectedImage.imageBitmapMosaic;
-		selectedImage.imageBitmapMosaic = selectedImage.imageBitmap->Clone();
+		int blockSize = 0;
 
-		if (m_mosaic_checked_10) {
-			applyMosaicInThread(selectedItemIndex, 10);
+		if (m_mosaic_checked_10) blockSize = 10;
+		else if (m_mosaic_checked_20) blockSize = 20;
+		else if (m_mosaic_checked_30) blockSize = 30;
+		else if (m_mosaic_checked_40) blockSize = 40;
+
+		int index = GetBlockSizeIndex(blockSize);
+
+		if (index != -1 && selectedImage.imageBitmapMosaic[index] == nullptr) {
+			applyMosaicInThread(selectedItemIndex, blockSize);
 		}
-		else if (m_mosaic_checked_20) {
-			applyMosaicInThread(selectedItemIndex, 20);
-		}
-		else if (m_mosaic_checked_30) {
-			applyMosaicInThread(selectedItemIndex, 30);
-		}
-		else if (m_mosaic_checked_40) {
-			applyMosaicInThread(selectedItemIndex, 40);
-		}
+
 		Invalidate();
 	}
 }
-
 
 void CMFCDlg::OnObrazokMosaic() {
 
@@ -805,15 +828,19 @@ void CMFCDlg::OnObrazokResetmosaic(){
 	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
 	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
 
-	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+/*	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 	if (selectedItemIndex != -1) {
 		Img& selectedImage = m_imageList[selectedItemIndex];
 
-		delete selectedImage.imageBitmapMosaic; 
-		selectedImage.imageBitmapMosaic = nullptr;
+		for (Gdiplus::Image*& mosaicImage : selectedImage.imageBitmapMosaic) {
+			delete mosaicImage;
+			mosaicImage = nullptr;
+		}
 
 		m_staticImage.Invalidate(FALSE);
 	}
+*/
+	m_staticImage.Invalidate(FALSE);
 }
 
 void CMFCDlg::ResetMosaicFlags() {

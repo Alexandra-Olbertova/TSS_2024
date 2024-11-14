@@ -39,7 +39,16 @@ struct Img
 	Gdiplus::Image* imageBitmap;
 	Histogram histogram;
 
-	Gdiplus::Image* imageBitmapMosaic;
+	std::vector<Gdiplus::Image*> imageBitmapMosaic = std::vector<Gdiplus::Image*>(4, nullptr);
+
+	// uvolnenie pamate
+	~Img() {
+		for (Gdiplus::Image* mosaicImage : imageBitmapMosaic) {
+			delete mosaicImage;  
+			mosaicImage = nullptr;
+		}
+	}
+
 
 	bool histogramCalculated = false;
 	bool histogramCalculationInProgress = false;
@@ -102,6 +111,7 @@ public:
 	bool m_mosaic_checked_30;
 	bool m_mosaic_checked_40;
 
+	int GetBlockSizeIndex(int blockSize);
 	void ApplyMosaicEffect(Gdiplus::Bitmap* bitmap, int blockSize);
 	void ApplyMosaicEffectBasedOnSelection();
 	void applyMosaicInThread(int selectedItemIndex, int blockSize);

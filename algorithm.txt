@@ -1,0 +1,15 @@
+	ApplyMosaicEffect
+
+- algoritmus rozdelí obrázok na bloky - jednotlivé bloky budú veľkosti akú si zvolí užívateľ (10/20/30/40)
+
+
+- v každom bloku sa prechádza cez všetky pixely a vypočítavajú sa priemery RGB zložiek 
+- každý pixel v bloku je následne nastavený na priemernú farbu, čím vzniká efekt zjednotenia farby na úrovni bloku
+
+- parametre nastavované cez GUI
+	- veľkosť bloku (blockSize)
+	- tento parameter určuje aká veľká časť obrázka sa bude priemerovať a aký bude detail mozaiky
+	- čím menšia veľkosť, tým jemnejšie detaily 
+
+zdroj
+https://www.geeksforgeeks.org/implementing-photomosaics/
