@@ -403,6 +403,25 @@ void CMFCDlg::OnClose()
 		if (::IsWindow(m_fileList.m_hWnd)) {
 			m_fileList.DeleteItem(selectedItemIndex);
 
+			m_histogramG_checked = false;
+			m_histogramB_checked = false;
+			m_histogramR_checked = false;
+
+			m_mosaic_checked_10 = false;
+			m_mosaic_checked_20 = false;
+			m_mosaic_checked_30 = false;
+			m_mosaic_checked_40 = false;
+
+			CMenu* pMenu = GetMenu();
+			pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, MF_UNCHECKED);
+			pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, MF_UNCHECKED);
+			pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, MF_UNCHECKED);
+
+			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, MF_UNCHECKED);
+			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, MF_UNCHECKED);
+			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
+			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
+
 			// po vymazani sa oznaci prvy 
 			int remainingItems = m_fileList.GetItemCount();
 			if (remainingItems > 0)
@@ -411,27 +430,8 @@ void CMFCDlg::OnClose()
 			}
 			else
 			{
-				m_staticImage.Invalidate();
 				m_staticHistogram.Invalidate();
-
-				m_histogramG_checked = false;
-				m_histogramB_checked = false;
-				m_histogramR_checked = false;
-				
-				m_mosaic_checked_10 = false;
-				m_mosaic_checked_20 = false;
-				m_mosaic_checked_30 = false;
-				m_mosaic_checked_40 = false;
-
-				CMenu* pMenu = GetMenu();
-				pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, MF_UNCHECKED);
-				pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, MF_UNCHECKED);
-				pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, MF_UNCHECKED);
-
-				pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, MF_UNCHECKED);
-				pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, MF_UNCHECKED);
-				pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
-				pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
+				m_staticImage.Invalidate();
 			}
 
 			Invalidate(FALSE);
@@ -524,6 +524,8 @@ void CMFCDlg::DrawHistogram(Gdiplus::Graphics* gr, const CRect& rect, int* histo
 	for (int i = 0; i < 256; ++i) {
 		float barHeight = (static_cast<float>(histogram[i]) / maxCount) * rect.Height();
 		gr->FillRectangle(&SolidBrush(color), i * barWidth, rect.Height() - barHeight, barWidth, barHeight);
+		//Pen pen(color, 2);  // 2 is the thickness of the line
+		//gr->DrawLine(&pen, i * barWidth, rect.Height() - barHeight, (i + 1) * barWidth, rect.Height() - barHeight);
 	}
 }
 
