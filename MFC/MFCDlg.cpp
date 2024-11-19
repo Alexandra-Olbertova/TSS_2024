@@ -121,7 +121,7 @@ LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 
 			gr->DrawImage(selectedFile.imageBitmapMosaic[index], rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
 		}
-			
+
 		else
 			gr->DrawImage(selectedFile.imageBitmap, rect.left + nDiffX, rect.top + nDiffY, drawWidth, drawHeight);
 
@@ -191,7 +191,7 @@ CMFCDlg::CMFCDlg(CWnd* pParent /*=nullptr*/)
 	m_histogramR_checked(false),
 	m_histogramG_checked(false),
 	m_histogramB_checked(false),
-	
+
 	m_mosaic_checked_10(false),
 	m_mosaic_checked_20(false),
 	m_mosaic_checked_30(false),
@@ -394,7 +394,14 @@ void CMFCDlg::OnClose()
 
 	CString selectedFileName = m_fileList.GetItemText(selectedItemIndex, 0);
 
-	// spyta sa, ci si prajete odstranit subor po potvrdenie - yes/no message button
+	// mutex
+	//std::lock_guard<std::mutex> lock(mosaicMutex);
+	if (m_imageList[selectedItemIndex].mosaicProcessing) {
+		AfxMessageBox(_T("Still processing..."));
+		return;
+	}
+
+	// spyta sa, ci si prajete odstranit subor po potvrdeni - yes/no message button
 	CString message;
 	message.Format(_T("Do you want to remove the file: %s?"), selectedFileName);
 
@@ -416,10 +423,7 @@ void CMFCDlg::OnClose()
 			m_histogramB_checked = false;
 			m_histogramR_checked = false;
 
-			m_mosaic_checked_10 = false;
-			m_mosaic_checked_20 = false;
-			m_mosaic_checked_30 = false;
-			m_mosaic_checked_40 = false;
+			ResetMosaicFlags();
 
 			CMenu* pMenu = GetMenu();
 			pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, MF_UNCHECKED);
@@ -481,7 +485,7 @@ void CMFCDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
-	
+
 	if (m_histogramR_checked || m_histogramG_checked || m_histogramB_checked) {
 		HistogramCalculationThread();
 
@@ -548,9 +552,9 @@ void CMFCDlg::OnHistogramR32788()
 	if (selectedItemIndex >= 0) {
 		Img& selectedImage = m_imageList[selectedItemIndex];
 		if (!selectedImage.histogramCalculated && !selectedImage.histogramCalculationInProgress) {
-			HistogramCalculationThread();  
+			HistogramCalculationThread();
 		}
-		Invalidate(); 
+		Invalidate();
 	}
 }
 
@@ -620,7 +624,7 @@ int CMFCDlg::GetBlockSizeIndex(int blockSize) {
 	case 20: return 1;
 	case 30: return 2;
 	case 40: return 3;
-	default: return -1; 
+	default: return -1;
 	}
 }
 
@@ -629,8 +633,8 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 	// obrazok s N pixelmi 
 	// kazdy pixel je reprezentovany RGB
 	// avgRGB vypocitam ako priemer jednotlivych hodnot - (r1 + ... + rN) / N, ...
-	
-	//std::this_thread::sleep_for(std::chrono::seconds(10));
+
+	std::this_thread::sleep_for(std::chrono::seconds(6));
 
 	UINT width = bitmap->GetWidth();
 	UINT height = bitmap->GetHeight();
@@ -643,13 +647,13 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 		BYTE* pixels = static_cast<BYTE*>(bitmapData.Scan0);
 		int stride = bitmapData.Stride;
 
-		for (UINT y = 0; y < height; y += blockSize){// posuvam sa o velkost bloku
-			for (UINT x = 0; x < width; x += blockSize){
+		for (UINT y = 0; y < height; y += blockSize) {// posuvam sa o velkost bloku
+			for (UINT x = 0; x < width; x += blockSize) {
 				int rSum = 0, gSum = 0, bSum = 0, pixelCount = 0;
 
 				// priemer
-				for (UINT yy = y; yy < y + blockSize && yy < height; yy++){
-					for (UINT xx = x; xx < x + blockSize && xx < width; xx++){
+				for (UINT yy = y; yy < y + blockSize && yy < height; yy++) {
+					for (UINT xx = x; xx < x + blockSize && xx < width; xx++) {
 						BYTE* pixel = pixels + (yy * stride) + (xx * 4);
 
 						bSum += pixel[0];
@@ -663,8 +667,8 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 				BYTE bAvg = static_cast<BYTE>(bSum / pixelCount);
 
 				// aplikovanie
-				for (UINT yy = y; yy < y + blockSize && yy < height; yy++){
-					for (UINT xx = x; xx < x + blockSize && xx < width; xx++){
+				for (UINT yy = y; yy < y + blockSize && yy < height; yy++) {
+					for (UINT xx = x; xx < x + blockSize && xx < width; xx++) {
 						BYTE* pixel = pixels + (yy * stride) + (xx * 4);
 
 						pixel[0] = bAvg; // blue
@@ -679,44 +683,15 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 	}
 }
 
-/*
-void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
-
-	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-	if (selectedItemIndex != -1) {
-		Img& selectedImage = m_imageList[selectedItemIndex];
-
-		delete selectedImage.imageBitmapMosaic; 
-		selectedImage.imageBitmapMosaic = selectedImage.imageBitmap->Clone();
-
-		if (m_mosaic_checked_10) {
-
-			std::thread thread_mosaic_10([this, selectedImage]() {
-				ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 10);
-				PostMessage(WM_MOSAIC_DONE, selectedImage, 0);
-				});
-
-			thread_mosaic_10.detach();
-		}
-		else if (m_mosaic_checked_20) {
-			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 20);
-		}
-		else if (m_mosaic_checked_30) {
-			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 30);
-		}
-		else if (m_mosaic_checked_40) {
-			ApplyMosaicEffect(static_cast<Bitmap*>(selectedImage.imageBitmapMosaic), 40);
-		}
-		Invalidate();
-	}
-}
-
-*/
-
 void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 
 	std::thread mosaicThread([this, selectedItemIndex, blockSize]() {
+
+		std::lock_guard<std::mutex> lock(mosaicMutex);
+
 		Img& selectedImageThread = m_imageList[selectedItemIndex];
+
+		selectedImageThread.mosaicProcessing = true;
 
 		int index = GetBlockSizeIndex(blockSize);
 
@@ -727,9 +702,13 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 
 			PostMessage(WM_MOSAIC_DONE, selectedItemIndex, 0);
 		}
-	});
+
+		selectedImageThread.mosaicProcessing = false;
+
+		});
 
 	mosaicThread.detach();
+
 }
 
 void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
@@ -818,8 +797,8 @@ void CMFCDlg::OnObrazokMosaic40()
 	ApplyMosaicEffectBasedOnSelection();
 }
 
-void CMFCDlg::OnObrazokResetmosaic(){
-	
+void CMFCDlg::OnObrazokResetmosaic() {
+
 	ResetMosaicFlags();
 
 	CMenu* pMenu = GetMenu();
@@ -828,18 +807,7 @@ void CMFCDlg::OnObrazokResetmosaic(){
 	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
 	pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
 
-/*	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-	if (selectedItemIndex != -1) {
-		Img& selectedImage = m_imageList[selectedItemIndex];
 
-		for (Gdiplus::Image*& mosaicImage : selectedImage.imageBitmapMosaic) {
-			delete mosaicImage;
-			mosaicImage = nullptr;
-		}
-
-		m_staticImage.Invalidate(FALSE);
-	}
-*/
 	m_staticImage.Invalidate(FALSE);
 }
 
@@ -849,4 +817,3 @@ void CMFCDlg::ResetMosaicFlags() {
 	m_mosaic_checked_30 = false;
 	m_mosaic_checked_40 = false;
 }
-

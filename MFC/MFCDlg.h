@@ -2,6 +2,9 @@
 // MFCDlg.h : header file
 //
 #include <vector>
+#include <mutex>
+
+
 #pragma once
 
 // zadefinovana hodnota konstant - vsade bude mat definovanu danu hodnotu
@@ -49,9 +52,10 @@ struct Img
 		}
 	}
 
-
 	bool histogramCalculated = false;
 	bool histogramCalculationInProgress = false;
+
+	bool mosaicProcessing = false;
 };
 
 // CMFCDlg dialog
@@ -95,6 +99,8 @@ public:
 
 	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 	ULONG_PTR gdiplusToken;
+
+	std::mutex mosaicMutex;
 
 	// histogram
 	bool m_histogramR_checked;
