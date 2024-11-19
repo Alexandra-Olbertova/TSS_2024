@@ -56,6 +56,7 @@ struct Img
 	bool histogramCalculationInProgress = false;
 
 	bool mosaicProcessing = false;
+	bool mosaicDelete = false;
 };
 
 // CMFCDlg dialog
@@ -100,7 +101,7 @@ public:
 	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 	ULONG_PTR gdiplusToken;
 
-	std::mutex mosaicMutex;
+	//std::mutex mosaicMutex;
 
 	// histogram
 	bool m_histogramR_checked;

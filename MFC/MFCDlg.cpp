@@ -158,18 +158,6 @@ LRESULT CMFCDlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 
 LRESULT CMFCDlg::OnHistogramCalculationDone(WPARAM wParam, LPARAM lParam)
 {
-	/*int doneIndex = static_cast<int>(wParam);
-
-	//m_imageList[doneIndex].histogramCalculationInProgress = false;
-	//m_imageList[doneIndex].histogramCalculated = true;
-
-	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-
-	if (selectedItemIndex == doneIndex) {
-		m_staticHistogram.Invalidate(FALSE);
-		InvalidateRect(nullptr, TRUE);
-	}
-	*/
 	m_staticHistogram.Invalidate(FALSE);
 	m_staticImage.Invalidate(FALSE);
 	return 0;
@@ -394,11 +382,8 @@ void CMFCDlg::OnClose()
 
 	CString selectedFileName = m_fileList.GetItemText(selectedItemIndex, 0);
 
-	// mutex
-	//std::lock_guard<std::mutex> lock(mosaicMutex);
 	if (m_imageList[selectedItemIndex].mosaicProcessing) {
-		AfxMessageBox(_T("Still processing..."));
-		return;
+		m_imageList[selectedItemIndex].mosaicDelete = true;
 	}
 
 	// spyta sa, ci si prajete odstranit subor po potvrdeni - yes/no message button
@@ -687,8 +672,7 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 
 	std::thread mosaicThread([this, selectedItemIndex, blockSize]() {
 
-		std::lock_guard<std::mutex> lock(mosaicMutex);
-
+		//std::lock_guard<std::mutex> lock(mosaicMutex);
 		Img& selectedImageThread = m_imageList[selectedItemIndex];
 
 		selectedImageThread.mosaicProcessing = true;
@@ -698,7 +682,13 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 		if (index != -1) {
 			Gdiplus::Image* mosaicImage = selectedImageThread.imageBitmap->Clone();
 			ApplyMosaicEffect(static_cast<Bitmap*>(mosaicImage), blockSize);
-			selectedImageThread.imageBitmapMosaic[index] = mosaicImage;
+			
+			if (!selectedImageThread.mosaicDelete) {
+				selectedImageThread.imageBitmapMosaic[index] = mosaicImage;
+			}
+			else {
+				delete mosaicImage;
+			}
 
 			PostMessage(WM_MOSAIC_DONE, selectedItemIndex, 0);
 		}
