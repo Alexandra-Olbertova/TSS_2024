@@ -101,7 +101,7 @@ public:
 	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 	ULONG_PTR gdiplusToken;
 
-	//std::mutex mosaicMutex;
+	std::mutex mosaicMutex;
 
 	// histogram
 	bool m_histogramR_checked;

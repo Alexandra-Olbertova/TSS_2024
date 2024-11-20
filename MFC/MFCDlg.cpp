@@ -139,6 +139,8 @@ LRESULT CMFCDlg::OnDrawHist(WPARAM wParam, LPARAM lParam)
 	m_staticHistogram.GetClientRect(&rect);
 
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+	if (selectedItemIndex == -1) return S_OK;
+
 
 
 	// podla checked sa vykresli dany histogram
@@ -396,6 +398,8 @@ void CMFCDlg::OnClose()
 		auto i = std::remove_if(m_imageList.begin(), m_imageList.end(),
 			[&](const Img& file)
 			{
+				CString message;
+				message.Format(_T("Do you want to remove the file: %s?"), selectedFileName);
 				return file.fileName == selectedFileName;
 			});
 
@@ -403,22 +407,6 @@ void CMFCDlg::OnClose()
 
 		if (::IsWindow(m_fileList.m_hWnd)) {
 			m_fileList.DeleteItem(selectedItemIndex);
-
-			m_histogramG_checked = false;
-			m_histogramB_checked = false;
-			m_histogramR_checked = false;
-
-			ResetMosaicFlags();
-
-			CMenu* pMenu = GetMenu();
-			pMenu->CheckMenuItem(ID_HISTOGRAM_R32788, MF_UNCHECKED);
-			pMenu->CheckMenuItem(ID_HISTOGRAM_G32789, MF_UNCHECKED);
-			pMenu->CheckMenuItem(ID_HISTOGRAM_B32790, MF_UNCHECKED);
-
-			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, MF_UNCHECKED);
-			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, MF_UNCHECKED);
-			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
-			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
 
 			// po vymazani sa oznaci prvy 
 			int remainingItems = m_fileList.GetItemCount();
@@ -501,7 +489,10 @@ void CMFCDlg::HistogramCalculationThread()
 		selectedImage.histogramCalculationInProgress = true;
 
 		std::thread thread_hist([this, selectedItemIndex]() {
-			CalculateHistogram(m_imageList[selectedItemIndex]);
+			{
+				std::lock_guard<std::mutex> lock(mosaicMutex);
+				CalculateHistogram(m_imageList[selectedItemIndex]);
+			}
 			PostMessage(WM_HISTOGRAM_CALCULATION_DONE, selectedItemIndex, 0);
 			});
 
@@ -509,7 +500,6 @@ void CMFCDlg::HistogramCalculationThread()
 
 		selectedImage.histogramCalculationInProgress = false;
 		selectedImage.histogramCalculated = true;
-
 	}
 }
 
@@ -672,7 +662,8 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 
 	std::thread mosaicThread([this, selectedItemIndex, blockSize]() {
 
-		//std::lock_guard<std::mutex> lock(mosaicMutex);
+		std::lock_guard<std::mutex> lock(mosaicMutex);
+
 		Img& selectedImageThread = m_imageList[selectedItemIndex];
 
 		selectedImageThread.mosaicProcessing = true;
@@ -682,7 +673,7 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 		if (index != -1) {
 			Gdiplus::Image* mosaicImage = selectedImageThread.imageBitmap->Clone();
 			ApplyMosaicEffect(static_cast<Bitmap*>(mosaicImage), blockSize);
-			
+
 			if (!selectedImageThread.mosaicDelete) {
 				selectedImageThread.imageBitmapMosaic[index] = mosaicImage;
 			}
@@ -694,11 +685,10 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 		}
 
 		selectedImageThread.mosaicProcessing = false;
-
-		});
+		
+	});
 
 	mosaicThread.detach();
-
 }
 
 void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
@@ -718,7 +708,7 @@ void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
 		int index = GetBlockSizeIndex(blockSize);
 
 		if (index != -1 && selectedImage.imageBitmapMosaic[index] == nullptr) {
-			applyMosaicInThread(selectedItemIndex, blockSize);
+				applyMosaicInThread(selectedItemIndex, blockSize);
 		}
 
 		Invalidate();
