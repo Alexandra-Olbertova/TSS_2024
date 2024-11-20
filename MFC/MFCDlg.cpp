@@ -619,7 +619,7 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 	// kazdy pixel je reprezentovany RGB
 	// avgRGB vypocitam ako priemer jednotlivych hodnot - (r1 + ... + rN) / N, ...
 
-	std::this_thread::sleep_for(std::chrono::seconds(6));
+	//std::this_thread::sleep_for(std::chrono::seconds(6));
 
 	UINT width = bitmap->GetWidth();
 	UINT height = bitmap->GetHeight();
