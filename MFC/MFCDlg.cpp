@@ -397,9 +397,7 @@ void CMFCDlg::OnClose()
 		// subor sa zo zoznamu odstrani
 		auto i = std::remove_if(m_imageList.begin(), m_imageList.end(),
 			[&](const Img& file)
-			{
-				CString message;
-				message.Format(_T("Do you want to remove the file: %s?"), selectedFileName);
+			{				
 				return file.fileName == selectedFileName;
 			});
 
