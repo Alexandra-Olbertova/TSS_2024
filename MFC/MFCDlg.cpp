@@ -474,29 +474,39 @@ void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 	*pResult = 0;
 }
 
-void CMFCDlg::HistogramCalculationThread() {
-
+void CMFCDlg::HistogramCalculationThread()
+{
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
-	if (selectedItemIndex == -1) return;
 
-	Img& selectedImage = m_imageList[selectedItemIndex];
-	if (selectedImage.histogramCalculationInProgress || selectedImage.histogramCalculated) return;
+	if (selectedItemIndex != -1) {
+		Img& selectedImage = m_imageList[selectedItemIndex];
 
-	selectedImage.histogramCalculationInProgress = true;
+		// ak je spusteny vypocet, dalsi sa nespusti
+		if (selectedImage.histogramCalculated || selectedImage.histogramCalculationInProgress) { return; }
 
+		Img tempImg = selectedImage;
+		tempImg.histogramCalculationInProgress = true;
 
-	std::thread([this, selectedItemIndex]() {
-		CalculateHistogram(m_imageList[selectedItemIndex]);
+		std::thread([this, selectedItemIndex, tempImg]() mutable {
+			CalculateHistogram(tempImg);
 
-		{
-			std::mutex l;
-			Img& selectedImage = m_imageList[selectedItemIndex];
-			selectedImage.histogramCalculated = true;
-			selectedImage.histogramCalculationInProgress = false;
-		}
+			bool notify = false;
+			{
+				std::mutex l;
 
-		PostMessage(WM_HISTOGRAM_CALCULATION_DONE, selectedItemIndex, 0);
-		}).detach();
+				if (selectedItemIndex < m_imageList.size() && m_imageList[selectedItemIndex].fileName == tempImg.fileName) {
+					m_imageList[selectedItemIndex] = tempImg;
+					m_imageList[selectedItemIndex].histogramCalculated = true;
+					m_imageList[selectedItemIndex].histogramCalculationInProgress = false;
+					notify = true;
+				}
+			}
+
+			if (notify) {
+				PostMessage(WM_HISTOGRAM_CALCULATION_DONE, selectedItemIndex, 0);
+			}
+			}).detach();
+	}
 }
 
 void CMFCDlg::DrawHistogram(Gdiplus::Graphics* gr, const CRect& rect, int* histogram, Gdiplus::Color color)
