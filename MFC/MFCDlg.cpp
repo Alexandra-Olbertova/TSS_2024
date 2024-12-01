@@ -15,7 +15,6 @@
 
 using namespace Gdiplus;
 
-
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -127,6 +126,7 @@ LRESULT CMFCDlg::OnDrawImage(WPARAM wParam, LPARAM lParam)
 
 	}
 
+
 	return S_OK;
 }
 
@@ -169,6 +169,7 @@ LRESULT CMFCDlg::OnMosaicDone(WPARAM wParam, LPARAM lParam)
 {
 	m_staticImage.Invalidate(FALSE);
 	m_staticHistogram.Invalidate(FALSE);
+
 	return 0;
 }
 
@@ -383,7 +384,7 @@ void CMFCDlg::OnClose()
 
 	CString selectedFileName = m_fileList.GetItemText(selectedItemIndex, 0);
 
-	if (m_imageList[selectedItemIndex].mosaicProcessing) {
+	if (selectedItemIndex < m_imageList.size() && m_imageList[selectedItemIndex].mosaicProcessing) {
 		m_imageList[selectedItemIndex].mosaicDelete = true;
 	}
 
@@ -396,7 +397,7 @@ void CMFCDlg::OnClose()
 		// subor sa zo zoznamu odstrani
 		auto i = std::remove_if(m_imageList.begin(), m_imageList.end(),
 			[&](const Img& file)
-			{				
+			{
 				return file.fileName == selectedFileName;
 			});
 
@@ -473,39 +474,29 @@ void CMFCDlg::OnLvnItemchangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 	*pResult = 0;
 }
 
-void CMFCDlg::HistogramCalculationThread()
-{
+void CMFCDlg::HistogramCalculationThread() {
+
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
+	if (selectedItemIndex == -1) return;
 
-	if (selectedItemIndex != -1) {
-		Img& selectedImage = m_imageList[selectedItemIndex];
+	Img& selectedImage = m_imageList[selectedItemIndex];
+	if (selectedImage.histogramCalculationInProgress || selectedImage.histogramCalculated) return;
 
-		// ak je spusteny vypocet, dalsi sa nespusti
-		if (selectedImage.histogramCalculated || selectedImage.histogramCalculationInProgress) { return; }
+	selectedImage.histogramCalculationInProgress = true;
 
-		Img tempImg = selectedImage;
-		tempImg.histogramCalculationInProgress = true;
 
-		std::thread([this, selectedItemIndex, tempImg]() mutable {
-			CalculateHistogram(tempImg);
+	std::thread([this, selectedItemIndex]() {
+		CalculateHistogram(m_imageList[selectedItemIndex]);
 
-			bool notify = false;
-			{
-				std::lock_guard<std::mutex> lock(m_imageListMutex);
+		{
+			std::mutex l;
+			Img& selectedImage = m_imageList[selectedItemIndex];
+			selectedImage.histogramCalculated = true;
+			selectedImage.histogramCalculationInProgress = false;
+		}
 
-				if (selectedItemIndex < m_imageList.size() && m_imageList[selectedItemIndex].fileName == tempImg.fileName) {
-					m_imageList[selectedItemIndex] = tempImg;
-					m_imageList[selectedItemIndex].histogramCalculated = true;
-					m_imageList[selectedItemIndex].histogramCalculationInProgress = false;
-					notify = true;
-				}
-			}
-
-			if (notify) {
-				PostMessage(WM_HISTOGRAM_CALCULATION_DONE, selectedItemIndex, 0);
-			}
-			}).detach();
-	}
+		PostMessage(WM_HISTOGRAM_CALCULATION_DONE, selectedItemIndex, 0);
+		}).detach();
 }
 
 void CMFCDlg::DrawHistogram(Gdiplus::Graphics* gr, const CRect& rect, int* histogram, Gdiplus::Color color)
@@ -572,7 +563,7 @@ void CMFCDlg::OnHistogramB32790()
 
 void CMFCDlg::CalculateHistogram(Img& image)
 {
-	//std::this_thread::sleep_for(std::chrono::seconds(5));
+	//std::this_thread::sleep_for(std::chrono::seconds(8));
 
 	if (image.imageBitmap == nullptr) return;
 
@@ -614,7 +605,7 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 	// kazdy pixel je reprezentovany RGB
 	// avgRGB vypocitam ako priemer jednotlivych hodnot - (r1 + ... + rN) / N, ...
 
-	//std::this_thread::sleep_for(std::chrono::seconds(6));
+	//std::this_thread::sleep_for(std::chrono::seconds(8));
 
 	UINT width = bitmap->GetWidth();
 	UINT height = bitmap->GetHeight();
@@ -664,33 +655,30 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 }
 
 void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
-
-	std::thread([this, selectedItemIndex, blockSize]() {
+	//AfxMessageBox(_T("applyMosaicInThread Called"));
+	std::thread mosaicThread([this, selectedItemIndex, blockSize]() {
 
 		Img tempImg;
-		bool notify = false;
 
-		{
-			std::lock_guard<std::mutex> lock(m_imageListMutex);
+		if (selectedItemIndex >= m_imageList.size()) { return; }
 
-			if (selectedItemIndex >= m_imageList.size()) { return; }
+		Img& selectedImage = m_imageList[selectedItemIndex];
+		if (selectedImage.mosaicProcessing) { return; }
 
-			Img& selectedImage = m_imageList[selectedItemIndex];
-			if (selectedImage.mosaicProcessing) { return; }
+		selectedImage.mosaicProcessing = true;
 
-			selectedImage.mosaicProcessing = true;
+		tempImg = selectedImage;
 
-			tempImg = selectedImage;
-		}
 
 		int index = GetBlockSizeIndex(blockSize);
+		bool notify = false;
 
 		if (index != -1) {
 			Gdiplus::Image* mosaicImage = tempImg.imageBitmap->Clone();
 			ApplyMosaicEffect(static_cast<Gdiplus::Bitmap*>(mosaicImage), blockSize);
 
 			{
-				std::lock_guard<std::mutex> lock(m_imageListMutex);
+				std::mutex l;
 
 				if (selectedItemIndex < m_imageList.size() &&
 					m_imageList[selectedItemIndex].fileName == tempImg.fileName) {
@@ -715,7 +703,9 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 		if (notify) {
 			PostMessage(WM_MOSAIC_DONE, selectedItemIndex, 0);
 		}
-		}).detach();
+		});
+
+	mosaicThread.detach();
 }
 
 void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
@@ -723,6 +713,11 @@ void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 
 	if (selectedItemIndex != -1) {
+
+		if (selectedItemIndex >= m_imageList.size() || m_imageList[selectedItemIndex].mosaicDelete) {
+			return;
+		}
+
 		Img& selectedImage = m_imageList[selectedItemIndex];
 
 		int blockSize = 0;
@@ -735,7 +730,7 @@ void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
 		int index = GetBlockSizeIndex(blockSize);
 
 		if (index != -1 && selectedImage.imageBitmapMosaic[index] == nullptr) {
-				applyMosaicInThread(selectedItemIndex, blockSize);
+			applyMosaicInThread(selectedItemIndex, blockSize);
 		}
 
 		Invalidate();
