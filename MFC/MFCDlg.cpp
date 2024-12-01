@@ -656,6 +656,7 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 
 void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 	
+	// ak je odkomentovane, obrazky sa zobrazuju
 	//AfxMessageBox(_T("applyMosaicInThread Called"));
 	
 	std::thread mosaicThread([this, selectedItemIndex, blockSize]() {
