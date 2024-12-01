@@ -46,9 +46,9 @@ struct Img
 
 	// uvolnenie pamate
 	~Img() {
-		for (Gdiplus::Image* mosaicImage : imageBitmapMosaic) {
-			delete mosaicImage;
+		for (auto& mosaicImage : imageBitmapMosaic) {
 			mosaicImage = nullptr;
+			delete mosaicImage;
 		}
 	}
 
@@ -101,7 +101,6 @@ public:
 	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 	ULONG_PTR gdiplusToken;
 
-	std::mutex mosaicMutex;
 
 	// histogram
 	bool m_histogramR_checked;

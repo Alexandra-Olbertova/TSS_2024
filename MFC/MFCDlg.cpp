@@ -655,7 +655,9 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 }
 
 void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
+	
 	//AfxMessageBox(_T("applyMosaicInThread Called"));
+	
 	std::thread mosaicThread([this, selectedItemIndex, blockSize]() {
 
 		Img tempImg;
