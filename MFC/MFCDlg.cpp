@@ -479,12 +479,14 @@ void CMFCDlg::HistogramCalculationThread()
 	int selectedItemIndex = m_fileList.GetNextItem(-1, LVNI_SELECTED);
 
 	if (selectedItemIndex != -1) {
-		Img& selectedImage = m_imageList[selectedItemIndex];
+		//Img& selectedImage = m_imageList[selectedItemIndex];
+		Img& tempImg = m_imageList[selectedItemIndex];
+
 
 		// ak je spusteny vypocet, dalsi sa nespusti
-		if (selectedImage.histogramCalculated || selectedImage.histogramCalculationInProgress) { return; }
+		if (tempImg.histogramCalculated || tempImg.histogramCalculationInProgress) { return; }
 
-		Img tempImg = selectedImage;
+		//Img tempImg = selectedImage;
 		tempImg.histogramCalculationInProgress = true;
 
 		std::thread([this, selectedItemIndex, tempImg]() mutable {
@@ -495,7 +497,9 @@ void CMFCDlg::HistogramCalculationThread()
 				std::mutex l;
 
 				if (selectedItemIndex < m_imageList.size() && m_imageList[selectedItemIndex].fileName == tempImg.fileName) {
-					m_imageList[selectedItemIndex] = tempImg;
+					
+					m_imageList[selectedItemIndex].histogram = tempImg.histogram;
+					
 					m_imageList[selectedItemIndex].histogramCalculated = true;
 					m_imageList[selectedItemIndex].histogramCalculationInProgress = false;
 					notify = true;
@@ -652,9 +656,9 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 					for (UINT xx = x; xx < x + blockSize && xx < width; xx++) {
 						BYTE* pixel = pixels + (yy * stride) + (xx * 4);
 
-						pixel[0] = bAvg; // blue
-						pixel[1] = gAvg; // green
-						pixel[2] = rAvg; // red
+						pixel[0] = 255; // blue
+						pixel[1] = 0; // green
+						pixel[2] = 0; // red
 					}
 				}
 			}
@@ -662,11 +666,11 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 
 		bitmap->UnlockBits(&bitmapData);
 	}
+
 }
 
 void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 	
-	// ak je odkomentovane, obrazky sa zobrazuju
 	//AfxMessageBox(_T("applyMosaicInThread Called"));
 	
 	std::thread mosaicThread([this, selectedItemIndex, blockSize]() {
@@ -677,8 +681,6 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 
 		Img& selectedImage = m_imageList[selectedItemIndex];
 		if (selectedImage.mosaicProcessing) { return; }
-
-		selectedImage.mosaicProcessing = true;
 
 		tempImg = selectedImage;
 
@@ -695,16 +697,19 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 
 				if (selectedItemIndex < m_imageList.size() &&
 					m_imageList[selectedItemIndex].fileName == tempImg.fileName) {
-					Img& selectedImage = m_imageList[selectedItemIndex];
 
-					if (!selectedImage.mosaicDelete) {
-						selectedImage.imageBitmapMosaic[index] = mosaicImage;
+					//Img& selectedImage = m_imageList[selectedItemIndex];
+
+					if (!m_imageList[selectedItemIndex].mosaicDelete) {
+						m_imageList[selectedItemIndex].imageBitmapMosaic[index] = mosaicImage;
+
+						//selectedImage.imageBitmapMosaic[index] = mosaicImage;
 					}
 					else {
 						delete mosaicImage;
 					}
 
-					selectedImage.mosaicProcessing = false;
+					m_imageList[selectedItemIndex].mosaicProcessing = false;
 					notify = true;
 				}
 				else {
@@ -712,13 +717,19 @@ void CMFCDlg::applyMosaicInThread(int selectedItemIndex, int blockSize) {
 				}
 			}
 		}
+		m_imageList[selectedItemIndex].mosaicProcessing = false;
+
 
 		if (notify) {
 			PostMessage(WM_MOSAIC_DONE, selectedItemIndex, 0);
 		}
 		});
 
+
+
 	mosaicThread.detach();
+
+
 }
 
 void CMFCDlg::ApplyMosaicEffectBasedOnSelection() {
