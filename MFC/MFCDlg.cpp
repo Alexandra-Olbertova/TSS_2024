@@ -406,6 +406,15 @@ void CMFCDlg::OnClose()
 		if (::IsWindow(m_fileList.m_hWnd)) {
 			m_fileList.DeleteItem(selectedItemIndex);
 
+			ResetMosaicFlags();
+
+			CMenu* pMenu = GetMenu();
+
+			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_10, MF_UNCHECKED);
+			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_20, MF_UNCHECKED);
+			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_30, MF_UNCHECKED);
+			pMenu->CheckMenuItem(ID_OBRAZOK_MOSAIC_40, MF_UNCHECKED);
+
 			// po vymazani sa oznaci prvy 
 			int remainingItems = m_fileList.GetItemCount();
 			if (remainingItems > 0)
@@ -656,9 +665,9 @@ void CMFCDlg::ApplyMosaicEffect(Bitmap* bitmap, int blockSize)
 					for (UINT xx = x; xx < x + blockSize && xx < width; xx++) {
 						BYTE* pixel = pixels + (yy * stride) + (xx * 4);
 
-						pixel[0] = 255; // blue
-						pixel[1] = 0; // green
-						pixel[2] = 0; // red
+						pixel[0] = bAvg; // blue
+						pixel[1] = gAvg; // green
+						pixel[2] = rAvg; // red
 					}
 				}
 			}
